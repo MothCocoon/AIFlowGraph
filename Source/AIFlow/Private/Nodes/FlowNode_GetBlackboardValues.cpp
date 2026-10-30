@@ -1,0 +1,292 @@
+// Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
+
+#include "Nodes/FlowNode_GetBlackboardValues.h"
+#include "Blackboard/FlowBlackboardEntryValue.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "AIFlowAsset.h"
+#include "AIFlowTags.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType.h"
+#include "Blackboard/FlowBlackboardEntryValue_Enum.h"
+#include "Types/FlowAutoDataPinsWorkingData.h"
+#include "Types/FlowDataPinValuesStandard.h"
+#include "StructUtils/InstancedStruct.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(FlowNode_GetBlackboardValues)
+
+FName UFlowNode_GetBlackboardValues::INPIN_SpecificActor;
+
+UFlowNode_GetBlackboardValues::UFlowNode_GetBlackboardValues()
+	: Super()
+{
+#if WITH_EDITOR
+	NodeDisplayStyle = FlowNodeStyle::Blackboard;
+	Category = TEXT("Blackboard");
+#endif
+
+	InputPins.Empty();
+	OutputPins.Empty();
+
+	INPIN_SpecificActor = GET_MEMBER_NAME_CHECKED(ThisClass, SpecificActor);
+}
+
+AActor* UFlowNode_GetBlackboardValues::TryResolveActorForBlackboard() const
+{
+	// TODO (gtaylor) Cache this result for better lookup perf + an exec pin to provoke a recache operation
+	
+	// Use the SpecificActor if provided, otherwise use the Flow Owner Actor
+	TObjectPtr<UObject> ResolvedObject = nullptr;
+	const EFlowDataPinResolveResult ResolveResult = TryResolveDataPinValue<FFlowPinType_Object>(INPIN_SpecificActor, ResolvedObject);
+
+	if (FlowPinType::IsSuccess(ResolveResult) && ResolvedObject)
+	{
+		AActor* ResolvedSpecificActor = Cast<AActor>(ResolvedObject);
+		if (IsValid(ResolvedSpecificActor))
+		{
+			return ResolvedSpecificActor;
+		}
+
+		LogError(TEXT("Specific actor could not be resolved to an actor."), EFlowOnScreenMessageType::Temporary);
+
+		return nullptr;
+	}
+
+	// Default to the Flow graph's actor.  
+	AActor* ActorOwner = GetFlowAsset()->TryFindActorOwner();
+	return ActorOwner;
+}
+
+UBlackboardComponent* UFlowNode_GetBlackboardValues::GetBlackboardComponentToApplyTo() const
+{
+	// TODO (gtaylor) Consider consolidating with UFlowNode_SetBlackboardValuesV2::GetBlackboardComponentsToApplyTo()
+	UBlackboardData* DesiredBlackboardAsset = SpecificBlackboardAsset;
+
+	TSubclassOf<UBlackboardComponent> BlackboardComponentClass = UBlackboardComponent::StaticClass();
+	if (UAIFlowAsset* AIFlowAsset = Cast<UAIFlowAsset>(GetFlowAsset()))
+	{
+		BlackboardComponentClass = AIFlowAsset->GetBlackboardComponentClass();
+
+		// Default to the Flow Asset's default blackboard, if no SpecificBlackboardAsset was specified.
+		if (!DesiredBlackboardAsset)
+		{
+			DesiredBlackboardAsset = AIFlowAsset->GetBlackboardAsset();
+		}
+	}
+
+	AActor* ActorSourceForBlackboard = TryResolveActorForBlackboard();
+	if (!IsValid(ActorSourceForBlackboard))
+	{
+		return nullptr;
+	}
+
+	constexpr UFlowInjectComponentsManager* InjectComponentsManager = nullptr;
+
+	UBlackboardComponent* BlackboardComponent =
+		FAIFlowActorBlackboardHelper::FindOrAddBlackboardComponentOnActor(
+			*ActorSourceForBlackboard,
+			InjectComponentsManager,
+			BlackboardComponentClass,
+			DesiredBlackboardAsset,
+			SpecificBlackboardSearchRule,
+			EActorBlackboardInjectRule::DoNotInjectIfMissing);
+
+	return BlackboardComponent;
+}
+
+#if WITH_EDITOR
+void UFlowNode_GetBlackboardValues::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChainEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChainEvent);
+
+	if (PropertyChainEvent.PropertyChain.Num() == 0)
+	{
+		return;
+	}
+
+	auto& Property = PropertyChainEvent.PropertyChain.GetActiveMemberNode()->GetValue();
+
+	constexpr EPropertyChangeType::Type RelevantChangeTypesForReconstructionMask =
+		EPropertyChangeType::Unspecified |
+		EPropertyChangeType::ArrayAdd |
+		EPropertyChangeType::ArrayRemove |
+		EPropertyChangeType::ArrayClear |
+		EPropertyChangeType::ValueSet |
+		EPropertyChangeType::Redirected |
+		EPropertyChangeType::ArrayMove;
+
+	const uint32 PropertyChangedTypeFlags = (PropertyChainEvent.ChangeType & RelevantChangeTypesForReconstructionMask);
+	const bool bIsRelevantChangeTypeForReconstruction = PropertyChangedTypeFlags != 0;
+	const bool bChangedOutputProperties = Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, BlackboardEntries);
+	if (bIsRelevantChangeTypeForReconstruction && bChangedOutputProperties)
+	{
+		OnReconstructionRequested.ExecuteIfBound();
+	}
+}
+
+UBlackboardData* UFlowNode_GetBlackboardValues::GetBlackboardAssetForEditor() const
+{
+	if (IsValid(SpecificBlackboardAsset))
+	{
+		return SpecificBlackboardAsset;
+	}
+
+	return GetBlackboardAsset();
+}
+
+const FFlowAgentDoc& UFlowNode_GetBlackboardValues::GetAgentDoc() const
+{
+	static const FFlowAgentDoc Doc = MakeAgentDoc(
+		/*Guidance*/ TEXT("Optionally set SpecificActor and/or SpecificBlackboardAsset to read from a Blackboard other than the flow graph's own - otherwise it defaults to the graph owner's Blackboard."),
+		/*Tags*/     { TEXT("blackboard"), TEXT("read"), TEXT("datapin") },
+		/*Articles*/ {  });
+	return Doc;
+}
+
+UBlackboardData* UFlowNode_GetBlackboardValues::GetBlackboardAssetForPropertyHandle(const TSharedPtr<IPropertyHandle>& PropertyHandle) const
+{
+	if (UBlackboardData* BlackboardAssetForEditor = GetBlackboardAssetForEditor())
+	{
+		return BlackboardAssetForEditor;
+	}
+	
+	return Super::GetBlackboardAssetForPropertyHandle(PropertyHandle);
+}
+
+void UFlowNode_GetBlackboardValues::AutoGenerateDataPins(FFlowDataPinValueOwner& ValueOwner, FFlowAutoDataPinsWorkingData& InOutWorkingData)
+{
+	Super::AutoGenerateDataPins(ValueOwner, InOutWorkingData);
+
+	// TODO (gtaylor) Consider combining/merging with UFlowNode_GetBlackboardValues::AutoGenerateDataPins() version
+	const UBlackboardData* BlackboardAssetForEditor = GetBlackboardAssetForEditor();
+
+	if (!IsValid(BlackboardAssetForEditor))
+	{
+		LogError(TEXT("Could not auto-generate pins: no blackboard asset found for use in the editor."), EFlowOnScreenMessageType::Temporary);
+
+		return;
+	}
+
+	for (const FFlowBlackboardEntry& BlackboardEntry : BlackboardEntries)
+	{
+		const FName& PinName = BlackboardEntry.KeyName;
+		if (PinName.IsNone())
+		{
+			continue;
+		}
+		
+		// Source BlackboardKeyType from the expected blackboard
+		UBlackboardKeyType* BlackboardKeyType = GetBlackboardKeyTypeFromBlackboardKeyName(BlackboardAssetForEditor, BlackboardEntry.KeyName);
+		if (!BlackboardKeyType)
+		{
+			LogError(FString::Printf(TEXT("Could not auto-generate pins: blackboard asset could not provide a type for pin name %s."), *PinName.ToString()), EFlowOnScreenMessageType::Temporary);
+
+			continue;
+		}
+
+		TInstancedStruct<FFlowDataPinValue> InstancedFlowDataPinProperty;
+
+		constexpr UBlackboardComponent* BlackboardComponent = nullptr;
+		const EFlowDataPinResolveResult ProvidedResult =
+			FAIFlowActorBlackboardHelper::TryProvideFlowDataPinPropertyFromBlackboardEntry(
+				PinName,
+				BlackboardKeyType,
+				BlackboardComponent,
+				InstancedFlowDataPinProperty);
+
+		if (FlowPinType::IsSuccess(ProvidedResult))
+		{
+			const FFlowDataPinValue& FlowDataPinValuePtr = InstancedFlowDataPinProperty.Get<FFlowDataPinValue>();
+			if (const FFlowPinType* FlowPinType = FFlowPinType::LookupPinType(FlowDataPinValuePtr.GetPinTypeName()))
+			{
+				FFlowPin NewFlowPin = FlowPinType->CreateFlowPinFromValueWrapper(PinName, FlowDataPinValuePtr);
+
+				InOutWorkingData.AutoOutputDataPinsNext.Add(FFlowPinSourceData(NewFlowPin, ValueOwner));
+			}
+			else
+			{
+				LogError(FString::Printf(TEXT("Could not auto-generate pin %s: Could not find pin type %s."), *PinName.ToString(), *FlowDataPinValuePtr.GetPinTypeName().ToString()), EFlowOnScreenMessageType::Temporary);
+			}
+		}
+		else
+		{
+			LogError(FString::Printf(TEXT("Could not auto-generate pins: blackboard asset could not provide a value for pin name %s."), *PinName.ToString()), EFlowOnScreenMessageType::Temporary);
+		}
+	}
+}
+
+#endif // WITH_EDITOR
+
+void UFlowNode_GetBlackboardValues::UpdateNodeConfigText_Implementation()
+{
+#if WITH_EDITOR
+	FTextBuilder TextBuilder;
+
+	// TODO (gtaylor) Include some additional configuration notes here
+
+	SetNodeConfigText(TextBuilder.ToText());
+#endif // WITH_EDITOR
+}
+
+UBlackboardKeyType* UFlowNode_GetBlackboardValues::GetBlackboardKeyTypeFromBlackboardKeyName(const UBlackboardData* BlackboardAsset, const FName& KeyName)
+{
+	if (!IsValid(BlackboardAsset))
+	{
+		return nullptr;
+	}
+
+	const FBlackboard::FKey KeyID = BlackboardAsset->GetKeyID(KeyName);
+
+	if (KeyID != FBlackboard::InvalidKey)
+	{
+		if (const FBlackboardEntry* BlackboardKey = BlackboardAsset->GetKey(KeyID))
+		{
+			return BlackboardKey->KeyType;
+		}
+	}
+
+	return nullptr;
+}
+
+FFlowDataPinResult UFlowNode_GetBlackboardValues::TrySupplyDataPin(const FName PinName) const
+{
+	if (PinName == INPIN_SpecificActor)
+	{
+		return Super::TrySupplyDataPin(PinName);
+	}
+
+	if (UBlackboardComponent* BlackboardComponent = GetBlackboardComponentToApplyTo())
+	{
+		auto GetBlackboardKeyType = [](const UBlackboardComponent& BlackboardComponent, const FName& KeyName) -> UBlackboardKeyType*
+		{
+			UBlackboardData* BlackboardAsset = BlackboardComponent.GetBlackboardAsset();
+			if (IsValid(BlackboardAsset))
+			{
+				const FBlackboard::FKey KeyID = BlackboardAsset->GetKeyID(KeyName);
+				if (KeyID != FBlackboard::InvalidKey)
+				{
+					const FBlackboardEntry* BlackboardEntry = BlackboardAsset->GetKey(KeyID);
+					return BlackboardEntry->KeyType;
+				}
+			}
+			return nullptr;
+		};
+
+		const UBlackboardKeyType* BlackboardKeyType = GetBlackboardKeyType(*BlackboardComponent, PinName);
+		if (BlackboardKeyType == nullptr)
+		{
+			LogWarning(FString::Printf(TEXT("Asked for BlackboardEntry for key (%s), which could not be found in the blackboard %s."), *PinName.ToString(), *BlackboardComponent->GetName()));
+		}
+
+		FFlowDataPinResult SuppliedResult;
+
+		SuppliedResult.Result =
+			FAIFlowActorBlackboardHelper::TryProvideFlowDataPinPropertyFromBlackboardEntry(
+				PinName,
+				BlackboardKeyType,
+				BlackboardComponent,
+				SuppliedResult.ResultValue);
+
+		return SuppliedResult;
+	}
+
+	return Super::TrySupplyDataPin(PinName);
+}
