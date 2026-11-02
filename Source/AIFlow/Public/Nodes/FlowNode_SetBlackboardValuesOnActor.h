@@ -26,10 +26,12 @@ public:
 #endif // WITH_EDITOR
 	// --
 
+protected:
 	// UFlowNodeBase
 	virtual void UpdateNodeConfigText_Implementation() override;
 	// --
 
+public:
 	// IFlowBlackboardAssetProvider
 #if WITH_EDITOR
 	virtual UBlackboardData* GetBlackboardAssetForPropertyHandle(const TSharedPtr<IPropertyHandle>& PropertyHandle) const override;
