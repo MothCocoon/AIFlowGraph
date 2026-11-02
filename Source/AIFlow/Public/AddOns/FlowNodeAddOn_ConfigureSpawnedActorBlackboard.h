@@ -26,10 +26,12 @@ public:
 	virtual void FinishedSpawningActor_Implementation(AActor* SpawnedActor, UFlowNodeBase* SpawningNodeOrAddOn) override;
 	// --
 
+protected:
 	// UFlowNodeBase
 	virtual void UpdateNodeConfigText_Implementation() override;
 	// --
 
+public:
 	// IBlackboardAssetProvider
 	virtual UBlackboardData* GetBlackboardAsset() const override;
 	// --

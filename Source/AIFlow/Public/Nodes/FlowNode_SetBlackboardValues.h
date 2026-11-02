@@ -29,6 +29,7 @@ public:
 	virtual void DeinitializeInstance() override;
 	// --
 
+protected:
 	// UFlowNodeBase
 	virtual void UpdateNodeConfigText_Implementation() override;
 	// --

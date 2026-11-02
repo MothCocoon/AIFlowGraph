@@ -23,8 +23,11 @@ public:
 	virtual void FinishedSpawningActor_Implementation(AActor* SpawnedActor, UFlowNodeBase* SpawningFlowNodeBase) override;
 	// --
 
+protected:
 	// UFlowNodeBase
 	virtual void UpdateNodeConfigText_Implementation() override;
+
+public:
 #if WITH_EDITOR
 	virtual const FFlowAgentDoc& GetAgentDoc() const override;
 #endif // WITH_EDITOR

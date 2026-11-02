@@ -23,10 +23,12 @@ public:
 
 	UFlowNode_GetBlackboardValues();
 
+protected:
 	// UFlowNodeBase
 	virtual void UpdateNodeConfigText_Implementation() override;
 	// --
 
+public:
 	// IFlowDataPinValueSupplierInterface
 	virtual FFlowDataPinResult TrySupplyDataPin(const FName PinName) const override;
 	// --
