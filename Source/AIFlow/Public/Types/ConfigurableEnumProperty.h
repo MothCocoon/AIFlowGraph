@@ -1,5 +1,4 @@
 // Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
-
 #pragma once
 
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Enum.h"

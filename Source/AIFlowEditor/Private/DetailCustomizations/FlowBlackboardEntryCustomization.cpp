@@ -1,6 +1,6 @@
 // Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
-
 #include "FlowBlackboardEntryCustomization.h"
+
 #include "Interfaces/FlowBlackboardAssetProvider.h"
 #include "Types/FlowBlackboardEntry.h"
 

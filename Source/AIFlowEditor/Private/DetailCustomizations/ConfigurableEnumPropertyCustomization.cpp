@@ -1,6 +1,6 @@
 // Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
-
 #include "ConfigurableEnumPropertyCustomization.h"
+
 #include "Types/ConfigurableEnumProperty.h"
 #include "Nodes/FlowPin.h"
 

@@ -1,6 +1,6 @@
 // Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
-
 #include "AddOns/FlowNodeAddOn_PredicateCompareBlackboardValue.h"
+
 #include "AIFlowActorBlackboardHelper.h"
 #include "Blackboard/FlowBlackboardEntryValue.h"
 #include "FlowAsset.h"

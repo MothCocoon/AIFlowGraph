@@ -1,6 +1,6 @@
 // Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
-
 #include "AIFlowActorBlackboardHelper.h"
+
 #include "AIFlowAsset.h"
 #include "AIFlowLogChannels.h"
 #include "BehaviorTree/BlackboardComponent.h"

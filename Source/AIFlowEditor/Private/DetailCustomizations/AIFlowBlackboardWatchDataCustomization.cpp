@@ -1,6 +1,6 @@
 // Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
-
 #include "AIFlowBlackboardWatchDataCustomization.h"
+
 #include "Blackboard/AIFlowBlackboardWatchData.h"
 
 #include "DetailLayoutBuilder.h"

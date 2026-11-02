@@ -1,6 +1,6 @@
 // Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
-
 #include "AddOns/AIFlowNodeAddOn.h"
+
 #include "FlowAsset.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AIFlowNodeAddOn)

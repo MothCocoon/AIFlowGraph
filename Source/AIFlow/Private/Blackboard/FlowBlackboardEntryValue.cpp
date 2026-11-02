@@ -1,6 +1,6 @@
 // Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
-
 #include "Blackboard/FlowBlackboardEntryValue.h"
+
 #include "BehaviorTree/Blackboard/BlackboardKeyType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowBlackboardEntryValue)

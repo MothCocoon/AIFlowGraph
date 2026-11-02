@@ -1,5 +1,4 @@
 // Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
-
 #include "AIFlowEditorModule.h"
 
 #include "DetailCustomizations/FlowBlackboardEntryCustomization.h"
