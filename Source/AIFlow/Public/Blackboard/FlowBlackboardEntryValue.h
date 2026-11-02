@@ -93,7 +93,7 @@ public:
 #endif // WITH_EDITOR
 
 	// IFlowDataPinPropertyProviderInterface
-	virtual bool TryProvideFlowDataPinProperty(TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty) const { return false; }
+	virtual bool TryProvideFlowDataPinProperty(TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty) const override { return false; }
 	// --
 
 	// Try to provide a blackboard entry value for a key, if the type is supported by this class, in the form of a FFlowDataPinProperty

@@ -20,7 +20,7 @@ class AIFLOW_API UFlowNodeAddOn_InjectComponents : public UFlowNodeAddOn_InjectC
 public:
 
 	// IFlowPerSpawnedActorInterface
-	void FinishedSpawningActor_Implementation(AActor* SpawnedActor, UFlowNodeBase* SpawningFlowNodeBase) override;
+	virtual void FinishedSpawningActor_Implementation(AActor* SpawnedActor, UFlowNodeBase* SpawningFlowNodeBase) override;
 	// --
 
 	// UFlowNodeBase

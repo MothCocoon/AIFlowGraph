@@ -10,7 +10,7 @@ class UBlackboardComponent;
 class AIFLOWEDITOR_API FAIFlowAssetEditor : public FFlowAssetEditor
 {
 public:
-	virtual ~FAIFlowAssetEditor();
+	virtual ~FAIFlowAssetEditor() override;
 
 	virtual void InitFlowAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit) override;
 
