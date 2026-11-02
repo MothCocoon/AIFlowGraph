@@ -34,41 +34,6 @@ TSharedPtr<IPropertyHandle> FConfigurableEnumPropertyCustomization::GetCuratedNa
 	return FoundHandle;
 }
 
-TArray<FName> FConfigurableEnumPropertyCustomization::GetCuratedNameOptions() const
-{
-	TArray<FName> Results;
-
-	const UEnum* Enum = GetEnumClass();
-
-	if (IsValid(Enum))
-	{
-		Results = GetEnumValues(*Enum);
-	}
-
-	return Results;
-}
-
-TArray<FName> FConfigurableEnumPropertyCustomization::GetEnumValues(const UEnum& Enum)
-{
-	TArray<FName> EnumValues;
-
-	for (int Index = 0; Index < Enum.GetMaxEnumValue(); Index++)
-	{
-		if (!Enum.IsValidEnumValue(Index))
-		{
-			continue;
-		}
-
-		static const TCHAR* MetaDataKey_Hidden = TEXT("Hidden");
-		if (!Enum.HasMetaData(MetaDataKey_Hidden, Index))
-		{
-			EnumValues.Add(*Enum.GetDisplayNameTextByIndex(Index).ToString());
-		}
-	}
-
-	return EnumValues;
-}
-
 void FConfigurableEnumPropertyCustomization::SetCuratedName(const FName& NewValue)
 {
 	TSharedPtr<IPropertyHandle> ValueHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FConfigurableEnumProperty, Value));
@@ -91,6 +56,20 @@ bool FConfigurableEnumPropertyCustomization::TryGetCuratedName(FName& OutName) c
 	{
 		return false;
 	}
+}
+
+TArray<FName> FConfigurableEnumPropertyCustomization::GetCuratedNameOptions() const
+{
+	TArray<FName> Results;
+
+	const UEnum* Enum = GetEnumClass();
+
+	if (IsValid(Enum))
+	{
+		Results = GetEnumValues(*Enum);
+	}
+
+	return Results;
 }
 
 void FConfigurableEnumPropertyCustomization::OnEnumNameChanged()
@@ -121,4 +100,25 @@ const UEnum* FConfigurableEnumPropertyCustomization::GetEnumClass() const
 	}
 
 	return ConfigurableEnumProperty->EnumClass;
+}
+
+TArray<FName> FConfigurableEnumPropertyCustomization::GetEnumValues(const UEnum& Enum)
+{
+	TArray<FName> EnumValues;
+
+	for (int Index = 0; Index < Enum.GetMaxEnumValue(); Index++)
+	{
+		if (!Enum.IsValidEnumValue(Index))
+		{
+			continue;
+		}
+
+		static const TCHAR* MetaDataKey_Hidden = TEXT("Hidden");
+		if (!Enum.HasMetaData(MetaDataKey_Hidden, Index))
+		{
+			EnumValues.Add(*Enum.GetDisplayNameTextByIndex(Index).ToString());
+		}
+	}
+
+	return EnumValues;
 }

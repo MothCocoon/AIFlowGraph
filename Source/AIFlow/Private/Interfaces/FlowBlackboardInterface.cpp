@@ -7,6 +7,12 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowBlackboardInterface)
 
+UBlackboardComponent* IFlowBlackboardInterface::GetBlackboardComponent() const
+{
+	// Must be overridden by implementing classes to return the appropriate blackboard component
+	return nullptr;
+}
+
 bool IFlowBlackboardInterface::IsValidBlackboardKey(const FName& KeyName) const
 {
 	UBlackboardComponent* BlackboardComp = GetBlackboardComponent();
@@ -105,12 +111,6 @@ UBlackboardKeyType* IFlowBlackboardInterface::GetBlackboardKeyType(const UBlackb
 		}
 	}
 
-	return nullptr;
-}
-
-UBlackboardComponent* IFlowBlackboardInterface::GetBlackboardComponent() const
-{
-	// Must be overridden by implementing classes to return the appropriate blackboard component
 	return nullptr;
 }
 

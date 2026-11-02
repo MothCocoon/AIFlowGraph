@@ -10,24 +10,79 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowBlackboardEntryValue_Enum)
 
-#if WITH_EDITOR
-
-void UFlowBlackboardEntryValue_Enum::PostInitProperties()
+void UFlowBlackboardEntryValue_Enum::SetOnBlackboardComponent(UBlackboardComponent* BlackboardComponent) const
 {
-	Super::PostInitProperties();
-
-	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	if (IsValid(BlackboardComponent))
 	{
-		if (Key.AllowedTypes.IsEmpty())
-		{
-			UBlackboardKeyType_Enum* EnumKeyType = NewObject<UBlackboardKeyType_Enum>(this);
-
-			EnumKeyType->EnumType = EnumValue.EnumClass;
-
-			Key.AllowedTypes.Add(EnumKeyType);
-		}
+		const uint64 EnumValueAsInt = EnumValue.EnumClass->GetValueByName(EnumValue.Value);
+		BlackboardComponent->SetValueAsEnum(Key.GetKeyName(), EnumValueAsInt);
 	}
 }
+
+EBlackboardCompare::Type UFlowBlackboardEntryValue_Enum::CompareKeyValues(const UBlackboardComponent* BlackboardComponent, const FName& OtherKeyName) const
+{
+	if (!IsValid(BlackboardComponent))
+	{
+		UE_LOG(LogAIFlow, Error, TEXT("Cannot CompareKeyValues without a Blackboard!"));
+		return EBlackboardCompare::NotEqual;
+	}
+
+	if (!EnumValue.EnumClass)
+	{
+		return EBlackboardCompare::NotEqual;
+	}
+
+	const uint64 EnumValueAsInt = EnumValue.EnumClass->GetValueByName(EnumValue.Value);
+	const uint8 OtherValueAsEnumInt = BlackboardComponent->GetValueAsEnum(OtherKeyName);
+
+	// NOTE (gtaylor) Is there a way to verify that the OtherKey's enum class is the same as EnumClass?
+
+	if (EnumValueAsInt == OtherValueAsEnumInt)
+	{
+		return EBlackboardCompare::Equal;
+	}
+	else
+	{
+		return EBlackboardCompare::NotEqual;
+	}
+}
+
+TSubclassOf<UBlackboardKeyType> UFlowBlackboardEntryValue_Enum::GetSupportedBlackboardKeyType() const
+{
+	return UBlackboardKeyType_Enum::StaticClass();
+}
+
+bool UFlowBlackboardEntryValue_Enum::TrySetValueFromInputDataPin(const FName& PinName, UFlowNode& PinOwnerFlowNode)
+{
+	UEnum* EnumClass = EnumValue.EnumClass.Get();
+	const EFlowDataPinResolveResult ResolveResult = PinOwnerFlowNode.TryResolveDataPinValue<FFlowPinType_Enum>(PinName, EnumValue.Value, EnumClass);
+	EnumValue.EnumClass = EnumClass;
+	return FlowPinType::IsSuccess(ResolveResult);
+}
+
+bool UFlowBlackboardEntryValue_Enum::TryGetNumericalValuesForArithmeticOperation(int32* OutIntValue, float* OutFloatValue) const
+{
+	if (!IsValid(EnumValue.EnumClass))
+	{
+		return false;
+	}
+
+	const uint64 EnumValueAsInt = EnumValue.EnumClass->GetValueByName(EnumValue.Value);
+
+	if (OutIntValue)
+	{
+		*OutIntValue = static_cast<int32>(EnumValueAsInt);
+	}
+
+	if (OutFloatValue)
+	{
+		*OutFloatValue = static_cast<float>(EnumValueAsInt);
+	}
+
+	return true;
+}
+
+#if WITH_EDITOR
 
 bool UFlowBlackboardEntryValue_Enum::TryReconfigureFromBlackboardKeyType(const UBlackboardKeyType& KeyType)
 {
@@ -64,97 +119,6 @@ bool UFlowBlackboardEntryValue_Enum::TryReconfigureFromBlackboardKeyType(const U
 FString UFlowBlackboardEntryValue_Enum::GetEditorValueString() const
 {
 	return EnumValue.Value.ToString();
-}
-
-FText UFlowBlackboardEntryValue_Enum::BuildNodeConfigText() const
-{
-	return FText::FromString(FString::Printf(TEXT("Set %s to \"%s\""), *Key.GetKeyName().ToString(), *GetEditorValueString()));
-}
-
-void UFlowBlackboardEntryValue_Enum::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	const FName MemberPropertyName = PropertyChangedEvent.MemberProperty->GetFName();
-
-	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UFlowBlackboardEntryValue_Enum, Key))
-	{
-		(void) TryUpdateEnumTypesFromKey();
-	}
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UFlowBlackboardEntryValue_Enum, EnumValue))
-	{
-		if (ensure(Key.AllowedTypes.Num() == 1))
-		{
-			// Update the EnumClass on the EnumProperty whenever it changes
-			UBlackboardKeyType_Enum* EnumKeyType = Cast<UBlackboardKeyType_Enum>(Key.AllowedTypes[0]);
-
-			EnumKeyType->EnumType = EnumValue.EnumClass;
-		}
-	}
-
-	EnsureValueIsCompatibleWithEnumClass();
-}
-
-bool UFlowBlackboardEntryValue_Enum::TryUpdateEnumTypesFromKey()
-{
-	const UBlackboardData* BlackboardData = GetBlackboardAsset();
-	if (!IsValid(BlackboardData))
-	{
-		return false;
-	}
-
-	const FBlackboard::FKey KeyID = BlackboardData->GetKeyID(Key.GetKeyName());
-	if (KeyID == FBlackboard::InvalidKey)
-	{
-		return false;
-	}
-
-	const FBlackboardEntry* BlackboardEntry = BlackboardData->GetKey(KeyID);
-	if (!BlackboardEntry)
-	{
-		return false;
-	}
-
-	const UBlackboardKeyType_Enum* KeyTypeEnum = Cast<UBlackboardKeyType_Enum>(BlackboardEntry->KeyType);
-	if (!IsValid(KeyTypeEnum))
-	{
-		return false;
-	}
-
-	// Apply the UBlackboardKeyType_Enum values to EnumValue (FConfigurableEnumProperty)
-	if (KeyTypeEnum->bIsEnumNameValid)
-	{
-		EnumValue.EnumName = KeyTypeEnum->EnumName;
-	}
-	else
-	{
-		EnumValue.EnumName.Empty();
-	}
-
-	EnumValue.EnumClass = KeyTypeEnum->EnumType;
-
-	return true;
-}
-
-void UFlowBlackboardEntryValue_Enum::EnsureValueIsCompatibleWithEnumClass()
-{
-	if (!IsValid(EnumValue.EnumClass) && !EnumValue.Value.IsNone())
-	{
-		EnumValue.Value = NAME_None;
-	}
-
-	if (IsValid(EnumValue.EnumClass) && EnumValue.EnumClass->IsValidEnumName(EnumValue.Value))
-	{
-		if (EnumValue.EnumClass->IsValidEnumValue(-1))
-		{
-			EnumValue.Value = FName(EnumValue.EnumClass->GetDisplayNameTextByIndex(-1).ToString());
-		}
-		else
-		{
-			// Use the last entry if no INDEX_NONE/-1
-			EnumValue.Value = FName(EnumValue.EnumClass->GetDisplayNameTextByIndex(EnumValue.EnumClass->NumEnums() - 1).ToString());
-		}
-	}
 }
 
 #endif // WITH_EDITOR
@@ -238,74 +202,114 @@ FFlowDataPinResult_Enum UFlowBlackboardEntryValue_Enum::TryBuildDataPinResultFro
 	return EnumResult;
 }
 
-void UFlowBlackboardEntryValue_Enum::SetOnBlackboardComponent(UBlackboardComponent* BlackboardComponent) const
+#if WITH_EDITOR
+
+FText UFlowBlackboardEntryValue_Enum::BuildNodeConfigText() const
 {
-	if (IsValid(BlackboardComponent))
+	return FText::FromString(FString::Printf(TEXT("Set %s to \"%s\""), *Key.GetKeyName().ToString(), *GetEditorValueString()));
+}
+
+void UFlowBlackboardEntryValue_Enum::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
 	{
-		const uint64 EnumValueAsInt = EnumValue.EnumClass->GetValueByName(EnumValue.Value);
-		BlackboardComponent->SetValueAsEnum(Key.GetKeyName(), EnumValueAsInt);
+		if (Key.AllowedTypes.IsEmpty())
+		{
+			UBlackboardKeyType_Enum* EnumKeyType = NewObject<UBlackboardKeyType_Enum>(this);
+
+			EnumKeyType->EnumType = EnumValue.EnumClass;
+
+			Key.AllowedTypes.Add(EnumKeyType);
+		}
 	}
 }
 
-EBlackboardCompare::Type UFlowBlackboardEntryValue_Enum::CompareKeyValues(const UBlackboardComponent* BlackboardComponent, const FName& OtherKeyName) const
+void UFlowBlackboardEntryValue_Enum::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	if (!IsValid(BlackboardComponent))
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName MemberPropertyName = PropertyChangedEvent.MemberProperty->GetFName();
+
+	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UFlowBlackboardEntryValue_Enum, Key))
 	{
-		UE_LOG(LogAIFlow, Error, TEXT("Cannot CompareKeyValues without a Blackboard!"));
-		return EBlackboardCompare::NotEqual;
+		(void) TryUpdateEnumTypesFromKey();
+	}
+	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UFlowBlackboardEntryValue_Enum, EnumValue))
+	{
+		if (ensure(Key.AllowedTypes.Num() == 1))
+		{
+			// Update the EnumClass on the EnumProperty whenever it changes
+			UBlackboardKeyType_Enum* EnumKeyType = Cast<UBlackboardKeyType_Enum>(Key.AllowedTypes[0]);
+
+			EnumKeyType->EnumType = EnumValue.EnumClass;
+		}
 	}
 
-	if (!EnumValue.EnumClass)
+	EnsureValueIsCompatibleWithEnumClass();
+}
+
+void UFlowBlackboardEntryValue_Enum::EnsureValueIsCompatibleWithEnumClass()
+{
+	if (!IsValid(EnumValue.EnumClass) && !EnumValue.Value.IsNone())
 	{
-		return EBlackboardCompare::NotEqual;
+		EnumValue.Value = NAME_None;
 	}
 
-	const uint64 EnumValueAsInt = EnumValue.EnumClass->GetValueByName(EnumValue.Value);
-	const uint8 OtherValueAsEnumInt = BlackboardComponent->GetValueAsEnum(OtherKeyName);
-
-	// NOTE (gtaylor) Is there a way to verify that the OtherKey's enum class is the same as EnumClass?
-
-	if (EnumValueAsInt == OtherValueAsEnumInt)
+	if (IsValid(EnumValue.EnumClass) && EnumValue.EnumClass->IsValidEnumName(EnumValue.Value))
 	{
-		return EBlackboardCompare::Equal;
-	}
-	else
-	{
-		return EBlackboardCompare::NotEqual;
+		if (EnumValue.EnumClass->IsValidEnumValue(-1))
+		{
+			EnumValue.Value = FName(EnumValue.EnumClass->GetDisplayNameTextByIndex(-1).ToString());
+		}
+		else
+		{
+			// Use the last entry if no INDEX_NONE/-1
+			EnumValue.Value = FName(EnumValue.EnumClass->GetDisplayNameTextByIndex(EnumValue.EnumClass->NumEnums() - 1).ToString());
+		}
 	}
 }
 
-TSubclassOf<UBlackboardKeyType> UFlowBlackboardEntryValue_Enum::GetSupportedBlackboardKeyType() const
+bool UFlowBlackboardEntryValue_Enum::TryUpdateEnumTypesFromKey()
 {
-	return UBlackboardKeyType_Enum::StaticClass();
-}
-
-bool UFlowBlackboardEntryValue_Enum::TryGetNumericalValuesForArithmeticOperation(int32* OutIntValue, float* OutFloatValue) const
-{
-	if (!IsValid(EnumValue.EnumClass))
+	const UBlackboardData* BlackboardData = GetBlackboardAsset();
+	if (!IsValid(BlackboardData))
 	{
 		return false;
 	}
 
-	const uint64 EnumValueAsInt = EnumValue.EnumClass->GetValueByName(EnumValue.Value);
-
-	if (OutIntValue)
+	const FBlackboard::FKey KeyID = BlackboardData->GetKeyID(Key.GetKeyName());
+	if (KeyID == FBlackboard::InvalidKey)
 	{
-		*OutIntValue = static_cast<int32>(EnumValueAsInt);
+		return false;
 	}
 
-	if (OutFloatValue)
+	const FBlackboardEntry* BlackboardEntry = BlackboardData->GetKey(KeyID);
+	if (!BlackboardEntry)
 	{
-		*OutFloatValue = static_cast<float>(EnumValueAsInt);
+		return false;
 	}
+
+	const UBlackboardKeyType_Enum* KeyTypeEnum = Cast<UBlackboardKeyType_Enum>(BlackboardEntry->KeyType);
+	if (!IsValid(KeyTypeEnum))
+	{
+		return false;
+	}
+
+	// Apply the UBlackboardKeyType_Enum values to EnumValue (FConfigurableEnumProperty)
+	if (KeyTypeEnum->bIsEnumNameValid)
+	{
+		EnumValue.EnumName = KeyTypeEnum->EnumName;
+	}
+	else
+	{
+		EnumValue.EnumName.Empty();
+	}
+
+	EnumValue.EnumClass = KeyTypeEnum->EnumType;
 
 	return true;
 }
 
-bool UFlowBlackboardEntryValue_Enum::TrySetValueFromInputDataPin(const FName& PinName, UFlowNode& PinOwnerFlowNode)
-{
-	UEnum* EnumClass = EnumValue.EnumClass.Get();
-	const EFlowDataPinResolveResult ResolveResult = PinOwnerFlowNode.TryResolveDataPinValue<FFlowPinType_Enum>(PinName, EnumValue.Value, EnumClass);
-	EnumValue.EnumClass = EnumClass;
-	return FlowPinType::IsSuccess(ResolveResult);
-}
+#endif // WITH_EDITOR

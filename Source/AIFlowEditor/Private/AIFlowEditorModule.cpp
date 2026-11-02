@@ -92,28 +92,6 @@ void FAIFlowEditorModule::UnregisterAssets()
 	RegisteredAssetActions.Empty();
 }
 
-void FAIFlowEditorModule::RegisterCustomClassLayout(const TSubclassOf<UObject> Class, const FOnGetDetailCustomizationInstance DetailLayout)
-{
-	if (Class)
-	{
-		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyModule.RegisterCustomClassLayout(Class->GetFName(), DetailLayout);
-
-		CustomClassLayouts.Add(Class->GetFName());
-	}
-}
-
-void FAIFlowEditorModule::RegisterCustomStructLayout(const UScriptStruct& Struct, const FOnGetPropertyTypeCustomizationInstance DetailLayout)
-{
-	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
-	{
-		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyModule.RegisterCustomPropertyTypeLayout(Struct.GetFName(), DetailLayout);
-
-		CustomStructLayouts.Add(Struct.GetFName());
-	}
-}
-
 void FAIFlowEditorModule::RegisterDetailCustomizations()
 {
 	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
@@ -151,6 +129,28 @@ void FAIFlowEditorModule::UnregisterDetailCustomizations()
 		}
 
 		PropertyModule.NotifyCustomizationModuleChanged();
+	}
+}
+
+void FAIFlowEditorModule::RegisterCustomClassLayout(const TSubclassOf<UObject> Class, const FOnGetDetailCustomizationInstance DetailLayout)
+{
+	if (Class)
+	{
+		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.RegisterCustomClassLayout(Class->GetFName(), DetailLayout);
+
+		CustomClassLayouts.Add(Class->GetFName());
+	}
+}
+
+void FAIFlowEditorModule::RegisterCustomStructLayout(const UScriptStruct& Struct, const FOnGetPropertyTypeCustomizationInstance DetailLayout)
+{
+	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+	{
+		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.RegisterCustomPropertyTypeLayout(Struct.GetFName(), DetailLayout);
+
+		CustomStructLayouts.Add(Struct.GetFName());
 	}
 }
 

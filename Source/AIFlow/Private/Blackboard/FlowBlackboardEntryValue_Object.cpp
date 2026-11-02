@@ -10,22 +10,56 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowBlackboardEntryValue_Object)
 
-#if WITH_EDITOR
-void UFlowBlackboardEntryValue_Object::PostInitProperties()
+void UFlowBlackboardEntryValue_Object::SetOnBlackboardComponent(UBlackboardComponent* BlackboardComponent) const
 {
-	Super::PostInitProperties();
-
-	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	if (IsValid(BlackboardComponent))
 	{
-		if (Key.AllowedTypes.IsEmpty())
+		if (ObjectInstance)
 		{
-			UBlackboardKeyType_Object* ObjectType = NewObject<UBlackboardKeyType_Object>(this);
-			ObjectType->BaseClass = BaseClass;
-			Key.AllowedTypes.Add(ObjectType);
+			BlackboardComponent->SetValueAsObject(Key.GetKeyName(), ObjectInstance);
+		}
+		else
+		{
+			BlackboardComponent->SetValueAsObject(Key.GetKeyName(), ObjectAsset);
 		}
 	}
 }
 
+EBlackboardCompare::Type UFlowBlackboardEntryValue_Object::CompareKeyValues(const UBlackboardComponent* BlackboardComponent, const FName& OtherKeyName) const
+{
+	if (!IsValid(BlackboardComponent))
+	{
+		UE_LOG(LogAIFlow, Error, TEXT("Cannot CompareKeyValues without a Blackboard!"));
+		return EBlackboardCompare::NotEqual;
+	}
+
+	const UObject* OtherValueAsObject = BlackboardComponent->GetValueAsObject(OtherKeyName);
+
+	if ((ObjectInstance && ObjectInstance == OtherValueAsObject) ||
+		(ObjectAsset == OtherValueAsObject))
+	{
+		return EBlackboardCompare::Equal;
+	}
+	else
+	{
+		return EBlackboardCompare::NotEqual;
+	}
+}
+
+TSubclassOf<UBlackboardKeyType> UFlowBlackboardEntryValue_Object::GetSupportedBlackboardKeyType() const
+{
+	return UBlackboardKeyType_Object::StaticClass();
+}
+
+bool UFlowBlackboardEntryValue_Object::TrySetValueFromInputDataPin(const FName& PinName, UFlowNode& PinOwnerFlowNode)
+{
+	TObjectPtr<UObject> ResolvedObject = nullptr;
+	const EFlowDataPinResolveResult ResolveResult = PinOwnerFlowNode.TryResolveDataPinValue<FFlowPinType_Object>(PinName, ResolvedObject);
+	SetObjectValue(ResolvedObject);
+	return FlowPinType::IsSuccess(ResolveResult);
+}
+
+#if WITH_EDITOR
 bool UFlowBlackboardEntryValue_Object::TryReconfigureFromBlackboardKeyType(const UBlackboardKeyType& KeyType)
 {
 	const bool bSuperMadeChanges = Super::TryReconfigureFromBlackboardKeyType(KeyType);
@@ -62,67 +96,6 @@ FString UFlowBlackboardEntryValue_Object::GetEditorValueString() const
 	else
 	{
 		return TEXT("<none>");
-	}
-}
-
-FText UFlowBlackboardEntryValue_Object::BuildNodeConfigText() const
-{
-	return FText::FromString(FString::Printf(TEXT("Set %s to \"%s\""), *Key.GetKeyName().ToString(), *GetEditorValueString()));
-}
-
-void UFlowBlackboardEntryValue_Object::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	const FName MemberPropertyName = PropertyChangedEvent.MemberProperty->GetFName();
-
-	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UFlowBlackboardEntryValue_Object, BaseClass))
-	{
-		if (ensure(Key.AllowedTypes.Num() == 1))
-		{
-			// Update the BaseClass on the Key whenever it changes
-			UBlackboardKeyType_Object* ObjectType = CastChecked<UBlackboardKeyType_Object>(Key.AllowedTypes[0]);
-
-			ObjectType->BaseClass = BaseClass;
-		}
-	}
-
-	RefreshObjectTypeFromBaseClass();
-	EnsureObjectsAreCompatibleWithBaseClass();
-}
-
-void UFlowBlackboardEntryValue_Object::EnsureObjectsAreCompatibleWithBaseClass()
-{
-	if (ObjectInstance && !ObjectInstance->IsA(BaseClass))
-	{
-		// Clear the ObjectInstance if it is not compatible with the BaseClass
-		ObjectInstance = nullptr;
-	}
-
-	if (ObjectAsset && !ObjectAsset->IsA(BaseClass))
-	{
-		// Clear the ObjectAsset if it is not compatible with the BaseClass
-		ObjectAsset = nullptr;
-	}
-}
-
-void UFlowBlackboardEntryValue_Object::RefreshObjectTypeFromBaseClass()
-{
-	if (BaseClass)
-	{
-		const bool bIsInstanced = (BaseClass->ClassFlags & CLASS_EditInlineNew) != 0;
-		if (bIsInstanced)
-		{
-			ObjectTypeSelector = EObjectInstanceTypeSelector::Instanced;
-		}
-		else
-		{
-			ObjectTypeSelector = EObjectInstanceTypeSelector::Asset;
-		}
-	}
-	else
-	{
-		ObjectTypeSelector = EObjectInstanceTypeSelector::Unknown;
 	}
 }
 
@@ -201,51 +174,81 @@ void UFlowBlackboardEntryValue_Object::SetObjectValue(UObject* InValue)
 	}
 }
 
-bool UFlowBlackboardEntryValue_Object::TrySetValueFromInputDataPin(const FName& PinName, UFlowNode& PinOwnerFlowNode)
+#if WITH_EDITOR
+FText UFlowBlackboardEntryValue_Object::BuildNodeConfigText() const
 {
-	TObjectPtr<UObject> ResolvedObject = nullptr;
-	const EFlowDataPinResolveResult ResolveResult = PinOwnerFlowNode.TryResolveDataPinValue<FFlowPinType_Object>(PinName, ResolvedObject);
-	SetObjectValue(ResolvedObject);
-	return FlowPinType::IsSuccess(ResolveResult);
+	return FText::FromString(FString::Printf(TEXT("Set %s to \"%s\""), *Key.GetKeyName().ToString(), *GetEditorValueString()));
 }
 
-void UFlowBlackboardEntryValue_Object::SetOnBlackboardComponent(UBlackboardComponent* BlackboardComponent) const
+void UFlowBlackboardEntryValue_Object::PostInitProperties()
 {
-	if (IsValid(BlackboardComponent))
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
 	{
-		if (ObjectInstance)
+		if (Key.AllowedTypes.IsEmpty())
 		{
-			BlackboardComponent->SetValueAsObject(Key.GetKeyName(), ObjectInstance);
+			UBlackboardKeyType_Object* ObjectType = NewObject<UBlackboardKeyType_Object>(this);
+			ObjectType->BaseClass = BaseClass;
+			Key.AllowedTypes.Add(ObjectType);
+		}
+	}
+}
+
+void UFlowBlackboardEntryValue_Object::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName MemberPropertyName = PropertyChangedEvent.MemberProperty->GetFName();
+
+	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UFlowBlackboardEntryValue_Object, BaseClass))
+	{
+		if (ensure(Key.AllowedTypes.Num() == 1))
+		{
+			// Update the BaseClass on the Key whenever it changes
+			UBlackboardKeyType_Object* ObjectType = CastChecked<UBlackboardKeyType_Object>(Key.AllowedTypes[0]);
+
+			ObjectType->BaseClass = BaseClass;
+		}
+	}
+
+	RefreshObjectTypeFromBaseClass();
+	EnsureObjectsAreCompatibleWithBaseClass();
+}
+
+void UFlowBlackboardEntryValue_Object::EnsureObjectsAreCompatibleWithBaseClass()
+{
+	if (ObjectInstance && !ObjectInstance->IsA(BaseClass))
+	{
+		// Clear the ObjectInstance if it is not compatible with the BaseClass
+		ObjectInstance = nullptr;
+	}
+
+	if (ObjectAsset && !ObjectAsset->IsA(BaseClass))
+	{
+		// Clear the ObjectAsset if it is not compatible with the BaseClass
+		ObjectAsset = nullptr;
+	}
+}
+
+void UFlowBlackboardEntryValue_Object::RefreshObjectTypeFromBaseClass()
+{
+	if (BaseClass)
+	{
+		const bool bIsInstanced = (BaseClass->ClassFlags & CLASS_EditInlineNew) != 0;
+		if (bIsInstanced)
+		{
+			ObjectTypeSelector = EObjectInstanceTypeSelector::Instanced;
 		}
 		else
 		{
-			BlackboardComponent->SetValueAsObject(Key.GetKeyName(), ObjectAsset);
+			ObjectTypeSelector = EObjectInstanceTypeSelector::Asset;
 		}
-	}
-}
-
-EBlackboardCompare::Type UFlowBlackboardEntryValue_Object::CompareKeyValues(const UBlackboardComponent* BlackboardComponent, const FName& OtherKeyName) const
-{
-	if (!IsValid(BlackboardComponent))
-	{
-		UE_LOG(LogAIFlow, Error, TEXT("Cannot CompareKeyValues without a Blackboard!"));
-		return EBlackboardCompare::NotEqual;
-	}
-
-	const UObject* OtherValueAsObject = BlackboardComponent->GetValueAsObject(OtherKeyName);
-
-	if ((ObjectInstance && ObjectInstance == OtherValueAsObject) ||
-		(ObjectAsset == OtherValueAsObject))
-	{
-		return EBlackboardCompare::Equal;
 	}
 	else
 	{
-		return EBlackboardCompare::NotEqual;
+		ObjectTypeSelector = EObjectInstanceTypeSelector::Unknown;
 	}
 }
 
-TSubclassOf<UBlackboardKeyType> UFlowBlackboardEntryValue_Object::GetSupportedBlackboardKeyType() const
-{
-	return UBlackboardKeyType_Object::StaticClass();
-}
+#endif // WITH_EDITOR

@@ -5,6 +5,17 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AIFlowNode)
 
+UBlackboardComponent* UAIFlowNode::GetBlackboardComponent() const
+{
+	IFlowBlackboardInterface* FlowBlackboardInterface = Cast<IFlowBlackboardInterface>(GetFlowAsset());
+	if (FlowBlackboardInterface)
+	{
+		return FlowBlackboardInterface->GetBlackboardComponent();
+	}
+
+	return nullptr;
+}
+
 UBlackboardData* UAIFlowNode::GetBlackboardAsset() const
 {
 	if (const IFlowBlackboardAssetProvider* BlackboardAssetProvider = Cast<IFlowBlackboardAssetProvider>(GetFlowAsset()))
@@ -38,15 +49,4 @@ UBlackboardData* UAIFlowNode::GetBlackboardAssetForPropertyHandle(const TSharedP
 	return nullptr;
 }
 #endif // WITH_EDITOR
-
-UBlackboardComponent* UAIFlowNode::GetBlackboardComponent() const
-{
-	IFlowBlackboardInterface* FlowBlackboardInterface = Cast<IFlowBlackboardInterface>(GetFlowAsset());
-	if (FlowBlackboardInterface)
-	{
-		return FlowBlackboardInterface->GetBlackboardComponent();
-	}
-
-	return nullptr;
-}
 

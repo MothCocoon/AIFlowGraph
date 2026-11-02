@@ -7,16 +7,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowNodeAddOn_InjectComponents)
 
-#if WITH_EDITOR
-const FFlowAgentDoc& UFlowNodeAddOn_InjectComponents::GetAgentDoc() const
-{
-	static const FFlowAgentDoc Doc = MakeAgentDoc(
-		/*Guidance*/ TEXT("Generic AIFlow-level building block - configure the components to inject via InjectComponentsHelper. For encounter Spawn nodes, prefer the project's specialized InjectComponents subclass when it additionally cleans up injected components on pooling destroys, not just standard AActor destroy."),
-		/*Tags*/     { TEXT("addon"), TEXT("spawn"), TEXT("component"), TEXT("inject"), TEXT("base-class") });
-	return Doc;
-}
-#endif // WITH_EDITOR
-
 void UFlowNodeAddOn_InjectComponents::FinishedSpawningActor_Implementation(AActor* SpawnedActor, UFlowNodeBase* SpawningFlowNodeBase)
 {
 	// It is possible to fail spawning, and we will still get a nullptr call to this function
@@ -63,4 +53,14 @@ void UFlowNodeAddOn_InjectComponents::UpdateNodeConfigText_Implementation()
 	SetNodeConfigText(TextBuilder.ToText());
 #endif // WITH_EDITOR
 }
+
+#if WITH_EDITOR
+const FFlowAgentDoc& UFlowNodeAddOn_InjectComponents::GetAgentDoc() const
+{
+	static const FFlowAgentDoc Doc = MakeAgentDoc(
+		/*Guidance*/ TEXT("Generic AIFlow-level building block - configure the components to inject via InjectComponentsHelper. For encounter Spawn nodes, prefer the project's specialized InjectComponents subclass when it additionally cleans up injected components on pooling destroys, not just standard AActor destroy."),
+		/*Tags*/     { TEXT("addon"), TEXT("spawn"), TEXT("component"), TEXT("inject"), TEXT("base-class") });
+	return Doc;
+}
+#endif // WITH_EDITOR
 

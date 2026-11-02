@@ -28,6 +28,70 @@ UFlowNodeAddOn_PredicateCompareBlackboardValue::UFlowNodeAddOn_PredicateCompareB
 #endif
 }
 
+bool UFlowNodeAddOn_PredicateCompareBlackboardValue::EvaluatePredicate_Implementation() const
+{
+	const FAIFlowCachedBlackboardReference CachedBlackboard(*this, SpecificBlackboardAsset, SpecificBlackboardSearchRule);
+
+	if (!CachedBlackboard.IsValid())
+	{
+		LogError(TEXT("Cannot EvaluatePredicate on a blackboard key without a Blackboard Component or Asset"));
+
+		return false;
+	}
+
+	// Get the Left key first, which tells us what type we're dealing with
+	constexpr bool bWarnIfBlackboardKeysAreMissing = true;
+	FBlackboard::FKey KeyLeftID = FBlackboard::InvalidKey;
+	FBlackboardEntry const* KeyLeftTypeEntry = nullptr;
+	if (!TryGetBlackboardKeyInfo(*CachedBlackboard.BlackboardData, KeyLeft, KeyLeftID, KeyLeftTypeEntry, bWarnIfBlackboardKeysAreMissing))
+	{
+		LogError(TEXT("Cannot EvaluatePredicate on a blackboard key without a valid Key (left)"));
+
+		return false;
+	}
+
+	const TSubclassOf<UBlackboardKeyType> KeyLeftTypeClass = KeyLeftTypeEntry->KeyType->GetClass();
+
+	// Are we comparing vs. an explicit value or against another blackboard key's value?
+	bool bCompareResult = false;
+	if (IsValid(ExplicitValueRight))
+	{
+		// do the key vs explicit value comparison
+		bCompareResult = ComputeCompareResultWithExplicitValue(*CachedBlackboard.BlackboardComponent, KeyLeftTypeClass, KeyLeftID, *ExplicitValueRight);
+	}
+	else
+	{
+		// Look up the right-hand side key's information
+		FBlackboard::FKey KeyRightID = FBlackboard::InvalidKey;
+		FBlackboardEntry const* KeyRightTypeEntry = nullptr;
+		if (!TryGetBlackboardKeyInfo(*CachedBlackboard.BlackboardData, KeyRight, KeyRightID, KeyRightTypeEntry, bWarnIfBlackboardKeysAreMissing))
+		{
+			LogError(TEXT("Cannot EvaluatePredicate on a blackboard key without a valid Key (right)"));
+
+			return false;
+		}
+
+		const TSubclassOf<UBlackboardKeyType> KeyRightTypeClass = KeyLeftTypeEntry->KeyType->GetClass();
+		if (KeyLeftTypeClass != KeyRightTypeClass)
+		{
+			LogError(
+				FString::Printf(
+					TEXT("Cannot EvaluatePredicate on a blackboard key with mismatched key types: left %s %s and right %s %s"),
+					*KeyLeft.GetKeyName().ToString(),
+					KeyLeftTypeClass ? *KeyLeftTypeClass->GetName() : TEXT("<null>"),
+					*KeyRight.GetKeyName().ToString(),
+					KeyRightTypeClass ? *KeyRightTypeClass->GetName() : TEXT("<null>")));
+
+			return false;
+		}
+
+		// Do the key vs. key comparison
+		bCompareResult = ComputeCompareResult(*CachedBlackboard.BlackboardComponent, KeyLeftTypeClass, KeyLeftID, KeyRightID);
+	}
+
+	return bCompareResult;
+}
+
 #if WITH_EDITOR
 
 void UFlowNodeAddOn_PredicateCompareBlackboardValue::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -69,6 +133,43 @@ void UFlowNodeAddOn_PredicateCompareBlackboardValue::PostEditChangeProperty(FPro
 	{
 		OnReconstructionRequested.ExecuteIfBound();
 	}
+}
+
+FText UFlowNodeAddOn_PredicateCompareBlackboardValue::K2_GetNodeTitle_Implementation() const
+{
+	if (!KeyLeft.GetKeyName().IsNone() && GetDefault<UFlowSettings>()->bUseAdaptiveNodeTitles)
+	{
+		const FText LHS = FText::FromName(KeyLeft.GetKeyName());
+		const FText Operator = FText::FromString(GetOperatorSymbolString(OperatorType));
+
+		// Quoting "" the explicit value to make a key/literal comparison visually distinct from a key/key comparison
+		const FText RHS =
+			bUseExplicitValueForRightHandSide ?
+				FText::FromString(TEXT("\"") + (ExplicitValueRight ? ExplicitValueRight->GetEditorValueString() : TEXT("<unknown>")) + TEXT("\"")) :
+				FText::FromName(KeyRight.GetKeyName());
+		return FText::Format(LOCTEXT("CustomCompareBlackboardValueTitle", "{0} {1} {2}"), { LHS, Operator, RHS });
+	}
+
+	return Super::K2_GetNodeTitle_Implementation();
+}
+
+UBlackboardData* UFlowNodeAddOn_PredicateCompareBlackboardValue::GetBlackboardAssetForPropertyHandle(const TSharedPtr<IPropertyHandle>& PropertyHandle) const
+{
+	if (UBlackboardData* BlackboardAssetForEditor = GetBlackboardAssetForEditor())
+	{
+		return BlackboardAssetForEditor;
+	}
+
+	return Super::GetBlackboardAssetForPropertyHandle(PropertyHandle);
+}
+
+const FFlowAgentDoc& UFlowNodeAddOn_PredicateCompareBlackboardValue::GetAgentDoc() const
+{
+	static const FFlowAgentDoc Doc = MakeAgentDoc(
+		/*Guidance*/ TEXT("Arithmetic operators (less/greater-than) only work for Int, Float, and Enum key types - using them against any other key type is invalid configuration, not merely a false result. Enable the explicit-value option to compare against a fixed literal instead of a second Blackboard key on the right-hand side."),
+		/*Tags*/     { TEXT("predicate"), TEXT("compare"), TEXT("blackboard") },
+		/*Articles*/ {  });
+	return Doc;
 }
 
 bool UFlowNodeAddOn_PredicateCompareBlackboardValue::TryRefreshIsKeyLeftSelected()
@@ -201,43 +302,6 @@ UBlackboardData* UFlowNodeAddOn_PredicateCompareBlackboardValue::GetBlackboardAs
 	return GetBlackboardAsset();
 }
 
-UBlackboardData* UFlowNodeAddOn_PredicateCompareBlackboardValue::GetBlackboardAssetForPropertyHandle(const TSharedPtr<IPropertyHandle>& PropertyHandle) const
-{
-	if (UBlackboardData* BlackboardAssetForEditor = GetBlackboardAssetForEditor())
-	{
-		return BlackboardAssetForEditor;
-	}
-	
-	return Super::GetBlackboardAssetForPropertyHandle(PropertyHandle);
-}
-
-FText UFlowNodeAddOn_PredicateCompareBlackboardValue::K2_GetNodeTitle_Implementation() const
-{
-	if (!KeyLeft.GetKeyName().IsNone() && GetDefault<UFlowSettings>()->bUseAdaptiveNodeTitles)
-	{
-		const FText LHS = FText::FromName(KeyLeft.GetKeyName());
-		const FText Operator = FText::FromString(GetOperatorSymbolString(OperatorType));
-
-		// Quoting "" the explicit value to make a key/literal comparison visually distinct from a key/key comparison
-		const FText RHS = 
-			bUseExplicitValueForRightHandSide ?
-				FText::FromString(TEXT("\"") + (ExplicitValueRight ? ExplicitValueRight->GetEditorValueString() : TEXT("<unknown>")) + TEXT("\"")) :
-				FText::FromName(KeyRight.GetKeyName());
-		return FText::Format(LOCTEXT("CustomCompareBlackboardValueTitle", "{0} {1} {2}"), { LHS, Operator, RHS });
-	}
-
-	return Super::K2_GetNodeTitle_Implementation();
-}
-
-const FFlowAgentDoc& UFlowNodeAddOn_PredicateCompareBlackboardValue::GetAgentDoc() const
-{
-	static const FFlowAgentDoc Doc = MakeAgentDoc(
-		/*Guidance*/ TEXT("Arithmetic operators (less/greater-than) only work for Int, Float, and Enum key types - using them against any other key type is invalid configuration, not merely a false result. Enable the explicit-value option to compare against a fixed literal instead of a second Blackboard key on the right-hand side."),
-		/*Tags*/     { TEXT("predicate"), TEXT("compare"), TEXT("blackboard") },
-		/*Articles*/ {  });
-	return Doc;
-}
-
 #endif // WITH_EDITOR
 
 bool UFlowNodeAddOn_PredicateCompareBlackboardValue::TryGetBlackboardKeyInfo(
@@ -279,70 +343,6 @@ bool UFlowNodeAddOn_PredicateCompareBlackboardValue::TryGetBlackboardKeyInfo(
 	}
 
 	return true;
-}
-
-bool UFlowNodeAddOn_PredicateCompareBlackboardValue::EvaluatePredicate_Implementation() const
-{
-	const FAIFlowCachedBlackboardReference CachedBlackboard(*this, SpecificBlackboardAsset, SpecificBlackboardSearchRule);
-
-	if (!CachedBlackboard.IsValid())
-	{
-		LogError(TEXT("Cannot EvaluatePredicate on a blackboard key without a Blackboard Component or Asset"));
-
-		return false;
-	}
-
-	// Get the Left key first, which tells us what type we're dealing with
-	constexpr bool bWarnIfBlackboardKeysAreMissing = true;
-	FBlackboard::FKey KeyLeftID = FBlackboard::InvalidKey;
-	FBlackboardEntry const* KeyLeftTypeEntry = nullptr;
-	if (!TryGetBlackboardKeyInfo(*CachedBlackboard.BlackboardData, KeyLeft, KeyLeftID, KeyLeftTypeEntry, bWarnIfBlackboardKeysAreMissing))
-	{
-		LogError(TEXT("Cannot EvaluatePredicate on a blackboard key without a valid Key (left)"));
-
-		return false;
-	}
-
-	const TSubclassOf<UBlackboardKeyType> KeyLeftTypeClass = KeyLeftTypeEntry->KeyType->GetClass();
-
-	// Are we comparing vs. an explicit value or against another blackboard key's value?
-	bool bCompareResult = false;
-	if (IsValid(ExplicitValueRight))
-	{
-		// do the key vs explicit value comparison
-		bCompareResult = ComputeCompareResultWithExplicitValue(*CachedBlackboard.BlackboardComponent, KeyLeftTypeClass, KeyLeftID, *ExplicitValueRight);
-	}
-	else
-	{
-		// Look up the right-hand side key's information
-		FBlackboard::FKey KeyRightID = FBlackboard::InvalidKey;
-		FBlackboardEntry const* KeyRightTypeEntry = nullptr;
-		if (!TryGetBlackboardKeyInfo(*CachedBlackboard.BlackboardData, KeyRight, KeyRightID, KeyRightTypeEntry, bWarnIfBlackboardKeysAreMissing))
-		{
-			LogError(TEXT("Cannot EvaluatePredicate on a blackboard key without a valid Key (right)"));
-
-			return false;
-		}
-
-		const TSubclassOf<UBlackboardKeyType> KeyRightTypeClass = KeyLeftTypeEntry->KeyType->GetClass();
-		if (KeyLeftTypeClass != KeyRightTypeClass)
-		{
-			LogError(
-				FString::Printf(
-					TEXT("Cannot EvaluatePredicate on a blackboard key with mismatched key types: left %s %s and right %s %s"),
-					*KeyLeft.GetKeyName().ToString(),
-					KeyLeftTypeClass ? *KeyLeftTypeClass->GetName() : TEXT("<null>"),
-					*KeyRight.GetKeyName().ToString(),
-					KeyRightTypeClass ? *KeyRightTypeClass->GetName() : TEXT("<null>")));
-
-			return false;
-		}
-
-		// Do the key vs. key comparison 
-		bCompareResult = ComputeCompareResult(*CachedBlackboard.BlackboardComponent, KeyLeftTypeClass, KeyLeftID, KeyRightID);
-	}
-
-	return bCompareResult;
 }
 
 bool UFlowNodeAddOn_PredicateCompareBlackboardValue::ComputeCompareResultWithExplicitValue(

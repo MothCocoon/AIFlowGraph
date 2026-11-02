@@ -20,6 +20,28 @@ UFlowNode_SetBlackboardValuesOnActor::UFlowNode_SetBlackboardValuesOnActor()
 #endif
 }
 
+#if WITH_EDITOR
+void UFlowNode_SetBlackboardValuesOnActor::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	{
+		return;
+	}
+
+	if (BlackboardActorKey.AllowedTypes.IsEmpty())
+	{
+		UBlackboardKeyType_Object* ActorObjectType = NewObject<UBlackboardKeyType_Object>(this);
+
+		// Limit the BlackboardActorKey to AActor
+		ActorObjectType->BaseClass = AActor::StaticClass();
+
+		BlackboardActorKey.AllowedTypes.Add(ActorObjectType);
+	}
+}
+#endif // WITH_EDITOR
+
 void UFlowNode_SetBlackboardValuesOnActor::UpdateNodeConfigText_Implementation()
 {
 #if WITH_EDITOR
@@ -36,6 +58,25 @@ void UFlowNode_SetBlackboardValuesOnActor::UpdateNodeConfigText_Implementation()
 	SetNodeConfigText(TextBuilder.ToText());
 #endif // WITH_EDITOR
 }
+
+#if WITH_EDITOR
+UBlackboardData* UFlowNode_SetBlackboardValuesOnActor::GetBlackboardAssetForPropertyHandle(const TSharedPtr<IPropertyHandle>& PropertyHandle) const
+{
+	if (SpecificBlackboardAsset && PropertyHandle)
+	{
+		// Use the ExpectedBlackboardData for all properties except the BlackboardActorKey,
+		// which we should use the owning Flow Graph's blackboard instead.
+
+		const FName PropertyName = PropertyHandle->GetProperty()->GetFName();
+		if (PropertyName != GET_MEMBER_NAME_CHECKED(UFlowNode_SetBlackboardValuesOnActor, BlackboardActorKey))
+		{
+			return SpecificBlackboardAsset;
+		}
+	}
+
+	return GetBlackboardAsset();
+}
+#endif // WITH_EDITOR
 
 TArray<AActor*> UFlowNode_SetBlackboardValuesOnActor::TryResolveActorsForBlackboard() const
 {
@@ -102,42 +143,3 @@ bool UFlowNode_SetBlackboardValuesOnActor::TryAddBlackboardKeyedActor(TArray<AAc
 
 	return true;
 }
-
-#if WITH_EDITOR
-void UFlowNode_SetBlackboardValuesOnActor::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	if (HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
-	{
-		return;
-	}
-
-	if (BlackboardActorKey.AllowedTypes.IsEmpty())
-	{
-		UBlackboardKeyType_Object* ActorObjectType = NewObject<UBlackboardKeyType_Object>(this);
-
-		// Limit the BlackboardActorKey to AActor
-		ActorObjectType->BaseClass = AActor::StaticClass();
-
-		BlackboardActorKey.AllowedTypes.Add(ActorObjectType);
-	}
-}
-
-UBlackboardData* UFlowNode_SetBlackboardValuesOnActor::GetBlackboardAssetForPropertyHandle(const TSharedPtr<IPropertyHandle>& PropertyHandle) const
-{
-	if (SpecificBlackboardAsset && PropertyHandle)
-	{
-		// Use the ExpectedBlackboardData for all properties except the BlackboardActorKey,
-		// which we should use the owning Flow Graph's blackboard instead.
-
-		const FName PropertyName = PropertyHandle->GetProperty()->GetFName();
-		if (PropertyName != GET_MEMBER_NAME_CHECKED(UFlowNode_SetBlackboardValuesOnActor, BlackboardActorKey))
-		{
-			return SpecificBlackboardAsset;
-		}
-	}
-
-	return GetBlackboardAsset();
-}
-#endif // WITH_EDITOR

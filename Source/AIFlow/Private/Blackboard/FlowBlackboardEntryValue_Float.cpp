@@ -10,57 +10,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowBlackboardEntryValue_Float)
 
-#if WITH_EDITOR
-void UFlowBlackboardEntryValue_Float::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
-	{
-		if (Key.AllowedTypes.IsEmpty())
-		{
-			Key.AllowedTypes.Add(NewObject<UBlackboardKeyType_Float>(this));
-		}
-	}
-}
-
-FString UFlowBlackboardEntryValue_Float::GetEditorValueString() const
-{
-	return FString::Printf(TEXT("%f"), FloatValue);
-}
-
-FText UFlowBlackboardEntryValue_Float::BuildNodeConfigText() const
-{
-	return FText::FromString(FString::Printf(TEXT("Set %s to \"%f\""), *Key.GetKeyName().ToString(), FloatValue));
-}
-#endif // WITH_EDITOR
-
-bool UFlowBlackboardEntryValue_Float::TryProvideFlowDataPinProperty(TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty) const
-{
-	OutFlowDataPinProperty.InitializeAs<FFlowDataPinValue_Float>(FloatValue);
-	return true;
-}
-
-bool UFlowBlackboardEntryValue_Float::TryProvideFlowDataPinPropertyFromBlackboardEntry(
-	const FName& BlackboardKeyName,
-	const UBlackboardKeyType& BlackboardKeyType,
-	UBlackboardComponent* OptionalBlackboardComponent,
-	TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty) const
-{
-	return
-		TryProvideFlowDataPinPropertyFromBlackboardEntryTemplate<UBlackboardKeyType_Float, FFlowDataPinValue_Float>(
-			BlackboardKeyName,
-			BlackboardKeyType,
-			OptionalBlackboardComponent,
-			OutFlowDataPinProperty);
-}
-
-bool UFlowBlackboardEntryValue_Float::TrySetValueFromInputDataPin(const FName& PinName, UFlowNode& PinOwnerFlowNode)
-{
-	const EFlowDataPinResolveResult ResolveResult = PinOwnerFlowNode.TryResolveDataPinValue<FFlowPinType_Float>(PinName, FloatValue);
-	return FlowPinType::IsSuccess(ResolveResult);
-}
-
 void UFlowBlackboardEntryValue_Float::SetOnBlackboardComponent(UBlackboardComponent* BlackboardComponent) const
 {
 	if (IsValid(BlackboardComponent))
@@ -94,6 +43,12 @@ TSubclassOf<UBlackboardKeyType> UFlowBlackboardEntryValue_Float::GetSupportedBla
 	return UBlackboardKeyType_Float::StaticClass();
 }
 
+bool UFlowBlackboardEntryValue_Float::TrySetValueFromInputDataPin(const FName& PinName, UFlowNode& PinOwnerFlowNode)
+{
+	const EFlowDataPinResolveResult ResolveResult = PinOwnerFlowNode.TryResolveDataPinValue<FFlowPinType_Float>(PinName, FloatValue);
+	return FlowPinType::IsSuccess(ResolveResult);
+}
+
 bool UFlowBlackboardEntryValue_Float::TryGetNumericalValuesForArithmeticOperation(int32* OutIntValue, float* OutFloatValue) const
 {
 	if (OutIntValue)
@@ -108,3 +63,50 @@ bool UFlowBlackboardEntryValue_Float::TryGetNumericalValuesForArithmeticOperatio
 
 	return true;
 }
+
+#if WITH_EDITOR
+FString UFlowBlackboardEntryValue_Float::GetEditorValueString() const
+{
+	return FString::Printf(TEXT("%f"), FloatValue);
+}
+#endif // WITH_EDITOR
+
+bool UFlowBlackboardEntryValue_Float::TryProvideFlowDataPinProperty(TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty) const
+{
+	OutFlowDataPinProperty.InitializeAs<FFlowDataPinValue_Float>(FloatValue);
+	return true;
+}
+
+bool UFlowBlackboardEntryValue_Float::TryProvideFlowDataPinPropertyFromBlackboardEntry(
+	const FName& BlackboardKeyName,
+	const UBlackboardKeyType& BlackboardKeyType,
+	UBlackboardComponent* OptionalBlackboardComponent,
+	TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty) const
+{
+	return
+		TryProvideFlowDataPinPropertyFromBlackboardEntryTemplate<UBlackboardKeyType_Float, FFlowDataPinValue_Float>(
+			BlackboardKeyName,
+			BlackboardKeyType,
+			OptionalBlackboardComponent,
+			OutFlowDataPinProperty);
+}
+
+#if WITH_EDITOR
+FText UFlowBlackboardEntryValue_Float::BuildNodeConfigText() const
+{
+	return FText::FromString(FString::Printf(TEXT("Set %s to \"%f\""), *Key.GetKeyName().ToString(), FloatValue));
+}
+
+void UFlowBlackboardEntryValue_Float::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	{
+		if (Key.AllowedTypes.IsEmpty())
+		{
+			Key.AllowedTypes.Add(NewObject<UBlackboardKeyType_Float>(this));
+		}
+	}
+}
+#endif // WITH_EDITOR

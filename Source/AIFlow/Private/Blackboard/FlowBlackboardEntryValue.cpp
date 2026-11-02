@@ -7,45 +7,7 @@
 
 TArray<TWeakObjectPtr<UClass>> UFlowBlackboardEntryValue::CachedBlackboardEntryValueSubclassArray;
 
-UBlackboardData* UFlowBlackboardEntryValue::GetBlackboardAsset() const
-{
-	if (IFlowBlackboardAssetProvider* OuterProvider = Cast<IFlowBlackboardAssetProvider>(GetOuter()))
-	{
-		return OuterProvider->GetBlackboardAsset();
-	}
-
-	return nullptr;
-}
-
-const TArray<TWeakObjectPtr<UClass>>& UFlowBlackboardEntryValue::EnsureBlackboardEntryValueSubclassArray()
-{
-	// NOTE (gtaylor) Potentially vulnerable to modules loading in subclasses after this initial caching
-
-	if (CachedBlackboardEntryValueSubclassArray.IsEmpty())
-	{
-		TArray<UClass*> Subclasses;
-		GetDerivedClasses(UFlowBlackboardEntryValue::StaticClass(), Subclasses);
-
-		for (UClass* Subclass : Subclasses)
-		{
-			CachedBlackboardEntryValueSubclassArray.Add(Subclass);
-		}
-	}
-
-	return CachedBlackboardEntryValueSubclassArray;
-}
-
 #if WITH_EDITOR
-UBlackboardData* UFlowBlackboardEntryValue::GetBlackboardAssetForPropertyHandle(const TSharedPtr<IPropertyHandle>& PropertyHandle) const
-{
-	if (IFlowBlackboardAssetProvider* OuterProvider = Cast<IFlowBlackboardAssetProvider>(GetOuter()))
-	{
-		return OuterProvider->GetBlackboardAssetForPropertyHandle(PropertyHandle);
-	}
-
-	return nullptr;
-}
-
 bool UFlowBlackboardEntryValue::TryReconfigureFromBlackboardKeyType(const UBlackboardKeyType& KeyType)
 {
 	TSubclassOf<UBlackboardKeyType> SupportedKeyClass = GetSupportedBlackboardKeyType();
@@ -99,3 +61,43 @@ TSubclassOf<UFlowBlackboardEntryValue> UFlowBlackboardEntryValue::GetFlowBlackbo
 }
 
 #endif // WITH_EDITOR
+
+UBlackboardData* UFlowBlackboardEntryValue::GetBlackboardAsset() const
+{
+	if (IFlowBlackboardAssetProvider* OuterProvider = Cast<IFlowBlackboardAssetProvider>(GetOuter()))
+	{
+		return OuterProvider->GetBlackboardAsset();
+	}
+
+	return nullptr;
+}
+
+#if WITH_EDITOR
+UBlackboardData* UFlowBlackboardEntryValue::GetBlackboardAssetForPropertyHandle(const TSharedPtr<IPropertyHandle>& PropertyHandle) const
+{
+	if (IFlowBlackboardAssetProvider* OuterProvider = Cast<IFlowBlackboardAssetProvider>(GetOuter()))
+	{
+		return OuterProvider->GetBlackboardAssetForPropertyHandle(PropertyHandle);
+	}
+
+	return nullptr;
+}
+#endif // WITH_EDITOR
+
+const TArray<TWeakObjectPtr<UClass>>& UFlowBlackboardEntryValue::EnsureBlackboardEntryValueSubclassArray()
+{
+	// NOTE (gtaylor) Potentially vulnerable to modules loading in subclasses after this initial caching
+
+	if (CachedBlackboardEntryValueSubclassArray.IsEmpty())
+	{
+		TArray<UClass*> Subclasses;
+		GetDerivedClasses(UFlowBlackboardEntryValue::StaticClass(), Subclasses);
+
+		for (UClass* Subclass : Subclasses)
+		{
+			CachedBlackboardEntryValueSubclassArray.Add(Subclass);
+		}
+	}
+
+	return CachedBlackboardEntryValueSubclassArray;
+}

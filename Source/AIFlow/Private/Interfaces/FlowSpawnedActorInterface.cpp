@@ -5,22 +5,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowSpawnedActorInterface)
 
-bool IFlowSpawnedActorInterface::ImplementsInterfaceSafe(const UObject* Object)
-{
-	if (!IsValid(Object))
-	{
-		return false;
-	}
-
-	UClass* ObjectClass = Object->GetClass();
-	if (ObjectClass->ImplementsInterface(UFlowSpawnedActorInterface::StaticClass()))
-	{
-		return true;
-	}
-
-	return false;
-}
-
 void IFlowSpawnedActorInterface::DispatchFinishedSpawningActorFromFlowToActorAndComponents(AActor* SpawnedActor, UFlowNodeBase* SpawningNodeOrAddOn)
 {
 	check(SpawnedActor);
@@ -35,4 +19,20 @@ void IFlowSpawnedActorInterface::DispatchFinishedSpawningActorFromFlowToActorAnd
 	{
 		Execute_FinishedSpawningActorFromFlow(Component, SpawnedActor, SpawningNodeOrAddOn);
 	}
+}
+
+bool IFlowSpawnedActorInterface::ImplementsInterfaceSafe(const UObject* Object)
+{
+	if (!IsValid(Object))
+	{
+		return false;
+	}
+
+	UClass* ObjectClass = Object->GetClass();
+	if (ObjectClass->ImplementsInterface(UFlowSpawnedActorInterface::StaticClass()))
+	{
+		return true;
+	}
+
+	return false;
 }

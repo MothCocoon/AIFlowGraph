@@ -53,14 +53,14 @@ void UAIFlowAsset::DeinitializeInstance()
 	DestroyAndUnregisterBlackboardComponent();
 }
 
-UBlackboardData* UAIFlowAsset::GetBlackboardAsset() const
-{
-	return BlackboardAsset;
-}
-
 UBlackboardComponent* UAIFlowAsset::GetBlackboardComponent() const
 {
 	return BlackboardComponent.Get();
+}
+
+UBlackboardData* UAIFlowAsset::GetBlackboardAsset() const
+{
+	return BlackboardAsset;
 }
 
 UBlackboardComponent* UAIFlowAsset::BP_TryFindBlackboardComponentOnActor(AActor* Actor, UBlackboardData* OptionalBlackboardData)

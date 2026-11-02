@@ -53,6 +53,218 @@ SAIFlowWatchBlackboard::~SAIFlowWatchBlackboard()
 	}
 }
 
+void SAIFlowWatchBlackboard::ResetAndRefresh(const UAIFlowAsset* FlowAssetInstance)
+{
+	if (!IsValid(FlowAssetInstance))
+	{
+		SetDetailsFlowAsset(nullptr);
+		EnsureDetailsObjectIsSet(nullptr);
+
+		AvailableBlackboards.Reset();
+		SelectedBlackboard = nullptr;
+
+		return;
+	}
+
+	RebuildAvailableBlackboards(FlowAssetInstance);
+	PopulateList(FlowAssetInstance);
+}
+
+void SAIFlowWatchBlackboard::RefreshList(const UAIFlowAsset* FlowAssetInstance)
+{
+	if (!IsValid(FlowAssetInstance))
+	{
+		SetDetailsFlowAsset(nullptr);
+		EnsureDetailsObjectIsSet(nullptr);
+
+		return;
+	}
+
+	// Do NOT rebuild available BBs here; respect current SelectedBlackboard.
+	PopulateList(FlowAssetInstance);
+}
+
+void SAIFlowWatchBlackboard::OnFlowAssetTemplateRemoved(const UAIFlowAsset& FlowAssetTemplate)
+{
+	// If the last populated flow asset is being removed, then we need to stop watching it.
+	const UAIFlowAsset* PopulatedFromFlowAssetPtr = PopulatedFromFlowAsset.Get();
+	if (PopulatedFromFlowAssetPtr && PopulatedFromFlowAssetPtr->GetTemplateAsset() == &FlowAssetTemplate)
+	{
+		SetDetailsFlowAsset(nullptr);
+		EnsureDetailsObjectIsSet(nullptr);
+	}
+}
+
+EAIFlowBlackboardDisplayMode SAIFlowWatchBlackboard::GetDisplayMode() const
+{
+	if (!WatchDataObject.IsValid())
+	{
+		// If there is no watch data yet, return the default mode.
+		return EAIFlowBlackboardDisplayMode::DisplayEntriesAsText;
+	}
+
+	return WatchDataObject->DisplayMode;
+}
+
+void SAIFlowWatchBlackboard::SetDisplayMode(EAIFlowBlackboardDisplayMode InMode)
+{
+	UAIFlowBlackboardWatchData* WatchDataPtr = EnsureWatchDataObject();
+	if (!WatchDataPtr)
+	{
+		return;
+	}
+
+	if (WatchDataPtr->DisplayMode != InMode)
+	{
+		WatchDataPtr->DisplayMode = InMode;
+
+		// Force the details view to pick up the new mode.
+		if (DetailsView.IsValid())
+		{
+			DetailsView->ForceRefresh();
+		}
+	}
+}
+
+UBlackboardComponent* SAIFlowWatchBlackboard::GetSelectedBlackboard() const
+{
+	return SelectedBlackboard.Get();
+}
+
+void SAIFlowWatchBlackboard::SetSelectedBlackboard(UBlackboardComponent* InBB)
+{
+	if (!InBB)
+	{
+		SelectedBlackboard = nullptr;
+		return;
+	}
+
+	// Ensure the requested BB is in the current list
+	for (const TSharedPtr<FAIFlowWatchedBlackboardEntry>& Entry : AvailableBlackboards)
+	{
+		if (Entry.IsValid() && Entry->BlackboardComp.Get() == InBB)
+		{
+			SelectedBlackboard = InBB;
+			return;
+		}
+	}
+
+	// Not found in the current list; clear selection
+	SelectedBlackboard = nullptr;
+}
+
+void SAIFlowWatchBlackboard::PopulateList(const UAIFlowAsset* FlowAssetInstance)
+{
+	if (!IsValid(FlowAssetInstance))
+	{
+		SetDetailsFlowAsset(nullptr);
+		EnsureDetailsObjectIsSet(nullptr);
+
+		return;
+	}
+
+	// Ensure we have a selection based on the currently available blackboards
+	if (!SelectedBlackboard.IsValid())
+	{
+		RebuildAvailableBlackboards(FlowAssetInstance);
+	}
+
+	UBlackboardComponent* BBComp = GetSelectedBlackboard();
+	if (!HasValidBlackboardComponent(BBComp))
+	{
+		SetDetailsFlowAsset(nullptr);
+		EnsureDetailsObjectIsSet(nullptr);
+
+		return;
+	}
+
+	const UBlackboardData* BBData = BBComp->GetBlackboardAsset();
+	if (!IsValid(BBData))
+	{
+		SetDetailsFlowAsset(nullptr);
+		EnsureDetailsObjectIsSet(nullptr);
+
+		return;
+	}
+
+	// Create the transient watch data object and hold a strong reference to avoid GC
+	UAIFlowBlackboardWatchData* WatchDataPtr = EnsureWatchDataObject();
+
+	// Populate the watch data object from blackboard entries
+	WatchDataPtr->NamedProperties.Reset();
+	WatchDataPtr->NamedProperties.Reserve(BBData->Keys.Num());
+
+	for (const FBlackboardEntry& Entry : BBData->Keys)
+	{
+		TInstancedStruct<FFlowDataPinValue> OutValue;
+		const EFlowDataPinResolveResult ResolveResult =
+			FAIFlowActorBlackboardHelper::TryProvideFlowDataPinPropertyFromBlackboardEntry(
+				Entry.EntryName, Entry.KeyType, BBComp, OutValue);
+
+		if (FlowPinType::IsSuccess(ResolveResult))
+		{
+			FFlowNamedDataPinProperty& NewProperty = WatchDataPtr->NamedProperties.Emplace_GetRef();
+			NewProperty.Name = Entry.EntryName;
+			NewProperty.DataPinValue = OutValue;
+		}
+	}
+
+	// Refresh the details view to reflect new data
+	SetDetailsFlowAsset(FlowAssetInstance);
+	EnsureDetailsObjectIsSet(WatchDataObject.Get());
+}
+
+bool SAIFlowWatchBlackboard::HasValidBlackboardComponent(const UBlackboardComponent* BlackboardComp) const
+{
+	if (!BlackboardComp)
+	{
+		return false;
+	}
+
+	if (!BlackboardComp->HasValidAsset())
+	{
+		return false;
+	}
+
+	if (!GEditor->PlayWorld)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool SAIFlowWatchBlackboard::HasValidBlackboard(const UAIFlowAsset* FlowAssetInstance) const
+{
+	if (!FlowAssetInstance)
+	{
+		return false;
+	}
+
+	const UBlackboardComponent* BlackboardComp = FlowAssetInstance->GetBlackboardComponent();
+	return HasValidBlackboardComponent(BlackboardComp);
+}
+
+void SAIFlowWatchBlackboard::SetDetailsFlowAsset(const UAIFlowAsset* DetailsFlowAsset)
+{
+	PopulatedFromFlowAsset = DetailsFlowAsset;
+}
+
+void SAIFlowWatchBlackboard::EnsureDetailsObjectIsSet(UAIFlowBlackboardWatchData* InWatchDataObject, bool bForceRefresh /*= true*/)
+{
+	if (!DetailsView.IsValid())
+	{
+		return;
+	}
+
+	DetailsView->SetObject(InWatchDataObject);
+
+	if (bForceRefresh)
+	{
+		DetailsView->ForceRefresh();
+	}
+}
+
 UAIFlowBlackboardWatchData* SAIFlowWatchBlackboard::EnsureWatchDataObject()
 {
 	if (!WatchDataObject.IsValid())
@@ -227,218 +439,6 @@ FText SAIFlowWatchBlackboard::BuildBlackboardLabel(const FString& ContextLabel, 
 	}
 
 	return FText::FromString(AssetName);
-}
-
-void SAIFlowWatchBlackboard::PopulateList(const UAIFlowAsset* FlowAssetInstance)
-{
-	if (!IsValid(FlowAssetInstance))
-	{
-		SetDetailsFlowAsset(nullptr);
-		EnsureDetailsObjectIsSet(nullptr);
-
-		return;
-	}
-
-	// Ensure we have a selection based on the currently available blackboards
-	if (!SelectedBlackboard.IsValid())
-	{
-		RebuildAvailableBlackboards(FlowAssetInstance);
-	}
-
-	UBlackboardComponent* BBComp = GetSelectedBlackboard();
-	if (!HasValidBlackboardComponent(BBComp))
-	{
-		SetDetailsFlowAsset(nullptr);
-		EnsureDetailsObjectIsSet(nullptr);
-
-		return;
-	}
-
-	const UBlackboardData* BBData = BBComp->GetBlackboardAsset();
-	if (!IsValid(BBData))
-	{
-		SetDetailsFlowAsset(nullptr);
-		EnsureDetailsObjectIsSet(nullptr);
-
-		return;
-	}
-
-	// Create the transient watch data object and hold a strong reference to avoid GC
-	UAIFlowBlackboardWatchData* WatchDataPtr = EnsureWatchDataObject();
-
-	// Populate the watch data object from blackboard entries
-	WatchDataPtr->NamedProperties.Reset();
-	WatchDataPtr->NamedProperties.Reserve(BBData->Keys.Num());
-
-	for (const FBlackboardEntry& Entry : BBData->Keys)
-	{
-		TInstancedStruct<FFlowDataPinValue> OutValue;
-		const EFlowDataPinResolveResult ResolveResult =
-			FAIFlowActorBlackboardHelper::TryProvideFlowDataPinPropertyFromBlackboardEntry(
-				Entry.EntryName, Entry.KeyType, BBComp, OutValue);
-
-		if (FlowPinType::IsSuccess(ResolveResult))
-		{
-			FFlowNamedDataPinProperty& NewProperty = WatchDataPtr->NamedProperties.Emplace_GetRef();
-			NewProperty.Name = Entry.EntryName;
-			NewProperty.DataPinValue = OutValue;
-		}
-	}
-
-	// Refresh the details view to reflect new data
-	SetDetailsFlowAsset(FlowAssetInstance);
-	EnsureDetailsObjectIsSet(WatchDataObject.Get());
-}
-
-void SAIFlowWatchBlackboard::SetDetailsFlowAsset(const UAIFlowAsset* DetailsFlowAsset)
-{
-	PopulatedFromFlowAsset = DetailsFlowAsset;
-}
-
-void SAIFlowWatchBlackboard::EnsureDetailsObjectIsSet(UAIFlowBlackboardWatchData* InWatchDataObject, bool bForceRefresh /*= true*/)
-{
-	if (!DetailsView.IsValid())
-	{
-		return;
-	}
-
-	DetailsView->SetObject(InWatchDataObject);
-
-	if (bForceRefresh)
-	{
-		DetailsView->ForceRefresh();
-	}
-}
-
-void SAIFlowWatchBlackboard::ResetAndRefresh(const UAIFlowAsset* FlowAssetInstance)
-{
-	if (!IsValid(FlowAssetInstance))
-	{
-		SetDetailsFlowAsset(nullptr);
-		EnsureDetailsObjectIsSet(nullptr);
-
-		AvailableBlackboards.Reset();
-		SelectedBlackboard = nullptr;
-
-		return;
-	}
-
-	RebuildAvailableBlackboards(FlowAssetInstance);
-	PopulateList(FlowAssetInstance);
-}
-
-void SAIFlowWatchBlackboard::RefreshList(const UAIFlowAsset* FlowAssetInstance)
-{
-	if (!IsValid(FlowAssetInstance))
-	{
-		SetDetailsFlowAsset(nullptr);
-		EnsureDetailsObjectIsSet(nullptr);
-
-		return;
-	}
-
-	// Do NOT rebuild available BBs here; respect current SelectedBlackboard.
-	PopulateList(FlowAssetInstance);
-}
-
-void SAIFlowWatchBlackboard::OnFlowAssetTemplateRemoved(const UAIFlowAsset& FlowAssetTemplate)
-{
-	// If the last populated flow asset is being removed, then we need to stop watching it.
-	const UAIFlowAsset* PopulatedFromFlowAssetPtr = PopulatedFromFlowAsset.Get();
-	if (PopulatedFromFlowAssetPtr && PopulatedFromFlowAssetPtr->GetTemplateAsset() == &FlowAssetTemplate)
-	{
-		SetDetailsFlowAsset(nullptr);
-		EnsureDetailsObjectIsSet(nullptr);
-	}
-}
-
-bool SAIFlowWatchBlackboard::HasValidBlackboardComponent(const UBlackboardComponent* BlackboardComp) const
-{
-	if (!BlackboardComp)
-	{
-		return false;
-	}
-
-	if (!BlackboardComp->HasValidAsset())
-	{
-		return false;
-	}
-
-	if (!GEditor->PlayWorld)
-	{
-		return false;
-	}
-
-	return true;
-}
-
-bool SAIFlowWatchBlackboard::HasValidBlackboard(const UAIFlowAsset* FlowAssetInstance) const
-{
-	if (!FlowAssetInstance)
-	{
-		return false;
-	}
-
-	const UBlackboardComponent* BlackboardComp = FlowAssetInstance->GetBlackboardComponent();
-	return HasValidBlackboardComponent(BlackboardComp);
-}
-
-EAIFlowBlackboardDisplayMode SAIFlowWatchBlackboard::GetDisplayMode() const
-{
-	if (!WatchDataObject.IsValid())
-	{
-		// If there is no watch data yet, return the default mode.
-		return EAIFlowBlackboardDisplayMode::DisplayEntriesAsText;
-	}
-
-	return WatchDataObject->DisplayMode;
-}
-
-void SAIFlowWatchBlackboard::SetDisplayMode(EAIFlowBlackboardDisplayMode InMode)
-{
-	UAIFlowBlackboardWatchData* WatchDataPtr = EnsureWatchDataObject();
-	if (!WatchDataPtr)
-	{
-		return;
-	}
-
-	if (WatchDataPtr->DisplayMode != InMode)
-	{
-		WatchDataPtr->DisplayMode = InMode;
-
-		// Force the details view to pick up the new mode.
-		if (DetailsView.IsValid())
-		{
-			DetailsView->ForceRefresh();
-		}
-	}
-}
-
-UBlackboardComponent* SAIFlowWatchBlackboard::GetSelectedBlackboard() const
-{
-	return SelectedBlackboard.Get();
-}
-
-void SAIFlowWatchBlackboard::SetSelectedBlackboard(UBlackboardComponent* InBB)
-{
-	if (!InBB)
-	{
-		SelectedBlackboard = nullptr;
-		return;
-	}
-
-	// Ensure the requested BB is in the current list
-	for (const TSharedPtr<FAIFlowWatchedBlackboardEntry>& Entry : AvailableBlackboards)
-	{
-		if (Entry.IsValid() && Entry->BlackboardComp.Get() == InBB)
-		{
-			SelectedBlackboard = InBB;
-			return;
-		}
-	}
-
-	// Not found in the current list; clear selection
-	SelectedBlackboard = nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

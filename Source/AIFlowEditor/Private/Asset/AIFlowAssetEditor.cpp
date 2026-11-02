@@ -20,18 +20,35 @@
 
 const FName FAIFlowAssetEditor::WatchBlackboardTab(TEXT("WatchBlackboard"));
 
-void FAIFlowAssetEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+FAIFlowAssetEditor::~FAIFlowAssetEditor()
 {
-	Super::RegisterTabSpawners(InTabManager);
-
-	// Only add WatchBlackboardTab for AIFlowAsset instances.
-	if (Cast<UAIFlowAsset>(FlowAsset))
+	if (UFlowDebuggerSubsystem* DebuggerSubsystem = GEngine ? GEngine->GetEngineSubsystem<UFlowDebuggerSubsystem>() : nullptr)
 	{
-		InTabManager->RegisterTabSpawner(WatchBlackboardTab, FOnSpawnTab::CreateSP(this, &FAIFlowAssetEditor::SpawnTab_WatchBlackboard))
-			.SetDisplayName(LOCTEXT("WatchBlackboardTab", "Watch Blackboard"))
-			.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Audit"));
+		if (DebuggerPausedHandle.IsValid())
+		{
+			DebuggerSubsystem->OnDebuggerPaused.Remove(DebuggerPausedHandle);
+		}
+		
+		if (DebuggerResumedHandle.IsValid())
+		{
+			DebuggerSubsystem->OnDebuggerResumed.Remove(DebuggerResumedHandle);
+		}
+		
+		if (DebuggerBreakpointHitHandle.IsValid())
+		{
+			DebuggerSubsystem->OnDebuggerBreakpointHit.Remove(DebuggerBreakpointHitHandle);
+		}
+		
+		if (DebuggerTemplateRemovedHandle.IsValid())
+		{
+			DebuggerSubsystem->OnDebuggerFlowAssetTemplateRemoved.Remove(DebuggerTemplateRemovedHandle);
+		}
 	}
+
+	DebuggerPausedHandle.Reset();
+	DebuggerResumedHandle.Reset();
+	DebuggerBreakpointHitHandle.Reset();
+	DebuggerTemplateRemovedHandle.Reset();
 }
 
 void FAIFlowAssetEditor::InitFlowAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
@@ -130,6 +147,20 @@ TSharedRef<SDockTab> FAIFlowAssetEditor::SpawnTab_WatchBlackboard(const FSpawnTa
 		];
 }
 
+void FAIFlowAssetEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+{
+	Super::RegisterTabSpawners(InTabManager);
+
+	// Only add WatchBlackboardTab for AIFlowAsset instances.
+	if (Cast<UAIFlowAsset>(FlowAsset))
+	{
+		InTabManager->RegisterTabSpawner(WatchBlackboardTab, FOnSpawnTab::CreateSP(this, &FAIFlowAssetEditor::SpawnTab_WatchBlackboard))
+			.SetDisplayName(LOCTEXT("WatchBlackboardTab", "Watch Blackboard"))
+			.SetGroup(WorkspaceMenuCategory.ToSharedRef())
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Audit"));
+	}
+}
+
 void FAIFlowAssetEditor::CreateWidgets()
 {
 	Super::CreateWidgets();
@@ -173,37 +204,6 @@ void FAIFlowAssetEditor::CreateWidgets()
 				}
 			});
 	}
-}
-
-FAIFlowAssetEditor::~FAIFlowAssetEditor()
-{
-	if (UFlowDebuggerSubsystem* DebuggerSubsystem = GEngine ? GEngine->GetEngineSubsystem<UFlowDebuggerSubsystem>() : nullptr)
-	{
-		if (DebuggerPausedHandle.IsValid())
-		{
-			DebuggerSubsystem->OnDebuggerPaused.Remove(DebuggerPausedHandle);
-		}
-		
-		if (DebuggerResumedHandle.IsValid())
-		{
-			DebuggerSubsystem->OnDebuggerResumed.Remove(DebuggerResumedHandle);
-		}
-		
-		if (DebuggerBreakpointHitHandle.IsValid())
-		{
-			DebuggerSubsystem->OnDebuggerBreakpointHit.Remove(DebuggerBreakpointHitHandle);
-		}
-		
-		if (DebuggerTemplateRemovedHandle.IsValid())
-		{
-			DebuggerSubsystem->OnDebuggerFlowAssetTemplateRemoved.Remove(DebuggerTemplateRemovedHandle);
-		}
-	}
-
-	DebuggerPausedHandle.Reset();
-	DebuggerResumedHandle.Reset();
-	DebuggerBreakpointHitHandle.Reset();
-	DebuggerTemplateRemovedHandle.Reset();
 }
 
 TSharedRef<SWidget> FAIFlowAssetEditor::BuildWatchBlackboardDisplayModeWidget() const

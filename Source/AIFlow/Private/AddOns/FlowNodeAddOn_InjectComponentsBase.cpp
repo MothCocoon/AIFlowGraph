@@ -17,6 +17,25 @@ UFlowNodeAddOn_InjectComponentsBase::UFlowNodeAddOn_InjectComponentsBase()
 #endif
 }
 
+void UFlowNodeAddOn_InjectComponentsBase::FinishedSpawningActor_Implementation(AActor* SpawnedActor, UFlowNodeBase* SpawningFlowNodeBase)
+{
+}
+
+void UFlowNodeAddOn_InjectComponentsBase::DeinitializeInstance()
+{
+	CleanupInjectComponentsManager();
+
+	Super::DeinitializeInstance();
+}
+
+void UFlowNodeAddOn_InjectComponentsBase::OnBeforeActorRemoved(AActor* RemovedActor)
+{
+	if (IsValid(RemovedActor))
+	{
+		OnStopMonitoringActor(*RemovedActor);
+	}
+}
+
 void UFlowNodeAddOn_InjectComponentsBase::EnsureInjectComponentsManager()
 {
 	if (IsValid(InjectComponentsManager))
@@ -40,23 +59,4 @@ void UFlowNodeAddOn_InjectComponentsBase::CleanupInjectComponentsManager()
 	}
 
 	InjectComponentsManager = nullptr;
-}
-
-void UFlowNodeAddOn_InjectComponentsBase::DeinitializeInstance()
-{
-	CleanupInjectComponentsManager();
-
-	Super::DeinitializeInstance();
-}
-
-void UFlowNodeAddOn_InjectComponentsBase::OnBeforeActorRemoved(AActor* RemovedActor)
-{
-	if (IsValid(RemovedActor))
-	{
-		OnStopMonitoringActor(*RemovedActor);
-	}
-}
-
-void UFlowNodeAddOn_InjectComponentsBase::FinishedSpawningActor_Implementation(AActor* SpawnedActor, UFlowNodeBase* SpawningFlowNodeBase)
-{
 }

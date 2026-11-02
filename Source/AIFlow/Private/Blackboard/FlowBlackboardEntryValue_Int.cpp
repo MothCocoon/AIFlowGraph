@@ -10,57 +10,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowBlackboardEntryValue_Int)
 
-#if WITH_EDITOR
-void UFlowBlackboardEntryValue_Int::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
-	{
-		if (Key.AllowedTypes.IsEmpty())
-		{
-			Key.AllowedTypes.Add(NewObject<UBlackboardKeyType_Int>(this));
-		}
-	}
-}
-
-FString UFlowBlackboardEntryValue_Int::GetEditorValueString() const
-{
-	return FString::FromInt(IntValue);
-}
-
-FText UFlowBlackboardEntryValue_Int::BuildNodeConfigText() const
-{
-	return FText::FromString(FString::Printf(TEXT("Set %s to \"%d\""), *Key.GetKeyName().ToString(), IntValue));
-}
-#endif // WITH_EDITOR
-
-bool UFlowBlackboardEntryValue_Int::TryProvideFlowDataPinProperty(TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty) const
-{
-	OutFlowDataPinProperty.InitializeAs<FFlowDataPinValue_Int>(IntValue);
-	return true;
-}
-
-bool UFlowBlackboardEntryValue_Int::TryProvideFlowDataPinPropertyFromBlackboardEntry(
-	const FName& BlackboardKeyName,
-	const UBlackboardKeyType& BlackboardKeyType,
-	UBlackboardComponent* OptionalBlackboardComponent,
-	TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty) const
-{
-	return
-		TryProvideFlowDataPinPropertyFromBlackboardEntryTemplate<UBlackboardKeyType_Int, FFlowDataPinValue_Int>(
-			BlackboardKeyName,
-			BlackboardKeyType,
-			OptionalBlackboardComponent,
-			OutFlowDataPinProperty);
-}
-
-bool UFlowBlackboardEntryValue_Int::TrySetValueFromInputDataPin(const FName& PinName, UFlowNode& PinOwnerFlowNode)
-{
-	const EFlowDataPinResolveResult ResolveResult = PinOwnerFlowNode.TryResolveDataPinValue<FFlowPinType_Int>(PinName, IntValue);
-	return FlowPinType::IsSuccess(ResolveResult);
-}
-
 void UFlowBlackboardEntryValue_Int::SetOnBlackboardComponent(UBlackboardComponent* BlackboardComponent) const
 {
 	if (IsValid(BlackboardComponent))
@@ -94,6 +43,12 @@ TSubclassOf<UBlackboardKeyType> UFlowBlackboardEntryValue_Int::GetSupportedBlack
 	return UBlackboardKeyType_Int::StaticClass();
 }
 
+bool UFlowBlackboardEntryValue_Int::TrySetValueFromInputDataPin(const FName& PinName, UFlowNode& PinOwnerFlowNode)
+{
+	const EFlowDataPinResolveResult ResolveResult = PinOwnerFlowNode.TryResolveDataPinValue<FFlowPinType_Int>(PinName, IntValue);
+	return FlowPinType::IsSuccess(ResolveResult);
+}
+
 bool UFlowBlackboardEntryValue_Int::TryGetNumericalValuesForArithmeticOperation(int32* OutIntValue, float* OutFloatValue) const
 {
 	if (OutIntValue)
@@ -108,3 +63,50 @@ bool UFlowBlackboardEntryValue_Int::TryGetNumericalValuesForArithmeticOperation(
 
 	return true;
 }
+
+#if WITH_EDITOR
+FString UFlowBlackboardEntryValue_Int::GetEditorValueString() const
+{
+	return FString::FromInt(IntValue);
+}
+#endif // WITH_EDITOR
+
+bool UFlowBlackboardEntryValue_Int::TryProvideFlowDataPinProperty(TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty) const
+{
+	OutFlowDataPinProperty.InitializeAs<FFlowDataPinValue_Int>(IntValue);
+	return true;
+}
+
+bool UFlowBlackboardEntryValue_Int::TryProvideFlowDataPinPropertyFromBlackboardEntry(
+	const FName& BlackboardKeyName,
+	const UBlackboardKeyType& BlackboardKeyType,
+	UBlackboardComponent* OptionalBlackboardComponent,
+	TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty) const
+{
+	return
+		TryProvideFlowDataPinPropertyFromBlackboardEntryTemplate<UBlackboardKeyType_Int, FFlowDataPinValue_Int>(
+			BlackboardKeyName,
+			BlackboardKeyType,
+			OptionalBlackboardComponent,
+			OutFlowDataPinProperty);
+}
+
+#if WITH_EDITOR
+FText UFlowBlackboardEntryValue_Int::BuildNodeConfigText() const
+{
+	return FText::FromString(FString::Printf(TEXT("Set %s to \"%d\""), *Key.GetKeyName().ToString(), IntValue));
+}
+
+void UFlowBlackboardEntryValue_Int::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	{
+		if (Key.AllowedTypes.IsEmpty())
+		{
+			Key.AllowedTypes.Add(NewObject<UBlackboardKeyType_Int>(this));
+		}
+	}
+}
+#endif // WITH_EDITOR

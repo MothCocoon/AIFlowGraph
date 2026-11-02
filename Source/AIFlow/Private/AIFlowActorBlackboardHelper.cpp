@@ -15,6 +15,69 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AIFlowActorBlackboardHelper)
 
+void FAIFlowActorBlackboardHelper::ApplyBlackboardOptionsToBlackboardComponent(
+	UBlackboardComponent& BlackboardComponent,
+	EPerActorOptionsAssignmentMethod ApplicationMethod,
+	const FAIFlowConfigureBlackboardOption& EntriesForEveryActor,
+	const TArray<FAIFlowConfigureBlackboardOption>* PerActorOptions)
+{
+	if (!EntriesForEveryActor.Entries.IsEmpty())
+	{
+		ApplyBlackboardEntries(BlackboardComponent, EntriesForEveryActor.Entries);
+	}
+
+	if (PerActorOptions && !PerActorOptions->IsEmpty())
+	{
+		const int32 PerActorOptionIndex = ChooseNextBlackboardOptionIndex(ApplicationMethod, (*PerActorOptions));
+
+		if (PerActorOptionIndex != INDEX_NONE)
+		{
+			const FAIFlowConfigureBlackboardOption& Option = (*PerActorOptions)[PerActorOptionIndex];
+
+			ApplyBlackboardEntries(BlackboardComponent, Option.Entries);
+		}
+	}
+}
+
+TArray<UBlackboardComponent*> FAIFlowActorBlackboardHelper::FindOrAddBlackboardComponentOnActors(
+	const TArray<AActor*>& Actors,
+	UFlowInjectComponentsManager* InjectComponentsManager,
+	TSubclassOf<UBlackboardComponent> BlackboardComponentClass,
+	UBlackboardData* OptionalBlackboardData,
+	EActorBlackboardSearchRule SearchRule,
+	EActorBlackboardInjectRule InjectRule)
+{
+	TArray<UBlackboardComponent*> BlackboardComponents;
+
+	BlackboardComponents.Reserve(Actors.Num());
+
+	for (AActor* Actor : Actors)
+	{
+		if (!IsValid(Actor))
+		{
+			UE_LOG(LogAIFlow, Error, TEXT("Null Actor supplied to FindOrAddBlackboardComponentOnActors.  Filter out the nulls before calling this function."));
+
+			continue;
+		}
+
+		UBlackboardComponent* FoundBlackboardComponent =
+			FindOrAddBlackboardComponentOnActor(
+				*Actor,
+				InjectComponentsManager,
+				BlackboardComponentClass,
+				OptionalBlackboardData,
+				SearchRule,
+				InjectRule);
+
+		if (FoundBlackboardComponent)
+		{
+			BlackboardComponents.Add(FoundBlackboardComponent);
+		}
+	}
+
+	return BlackboardComponents;
+}
+
 UBlackboardComponent* FAIFlowActorBlackboardHelper::FindOrAddBlackboardComponentOnActor(
 	AActor& Actor,
 	UFlowInjectComponentsManager* InjectComponentsManager,
@@ -160,6 +223,93 @@ UBlackboardComponent* FAIFlowActorBlackboardHelper::TryFindBlackboardComponent(U
 	return nullptr;
 }
 
+EFlowDataPinResolveResult FAIFlowActorBlackboardHelper::TryProvideFlowDataPinPropertyFromBlackboardEntry(
+	const FName& BlackboardKeyName,
+	const UBlackboardKeyType* BlackboardKeyType,
+	UBlackboardComponent* OptionalBlackboardComponent,
+	TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty)
+{
+	if (!BlackboardKeyType)
+	{
+		return EFlowDataPinResolveResult::FailedMismatchedType;
+	}
+
+	FBlackboard::FKey BlackboardKeyID = FBlackboard::InvalidKey;
+
+	if (IsValid(OptionalBlackboardComponent))
+	{
+		BlackboardKeyID = OptionalBlackboardComponent->GetKeyID(BlackboardKeyName);
+
+		if (BlackboardKeyID == FBlackboard::InvalidKey)
+		{
+			return EFlowDataPinResolveResult::FailedUnknownPin;
+		}
+
+		const TSubclassOf<UBlackboardKeyType> FoundKeyType = OptionalBlackboardComponent->GetKeyType(BlackboardKeyID);
+		if (!BlackboardKeyType->IsA(FoundKeyType))
+		{
+			UE_LOG(
+				LogAIFlow,
+				Error,
+				TEXT("Blackboard key %s, key type %s, is not the desired key type %s, on blackboard %s."),
+				*BlackboardKeyName.ToString(),
+				*FoundKeyType->GetName(),
+				*BlackboardKeyType->GetName(),
+				*OptionalBlackboardComponent->GetName());
+
+			return EFlowDataPinResolveResult::FailedMismatchedType;
+		}
+	}
+
+	// TODO (gtaylor) Ideally, we optimize this lookup at some point, perhaps with a map?
+
+	// Slow lookup through all of the subclasses until we find one that can do the conversion.
+	const TArray<TWeakObjectPtr<UClass>> Subclasses = UFlowBlackboardEntryValue::EnsureBlackboardEntryValueSubclassArray();
+
+	for (TWeakObjectPtr<UClass> SubclassPtr : Subclasses)
+	{
+		UClass* Subclass = SubclassPtr.Get();
+		if (!IsValid(Subclass))
+		{
+			continue;
+		}
+
+		const UFlowBlackboardEntryValue* TypedSubclassCDO = Cast<UFlowBlackboardEntryValue>(Subclass->GetDefaultObject());
+
+		if (TypedSubclassCDO->TryProvideFlowDataPinPropertyFromBlackboardEntry(
+			BlackboardKeyName,
+			*BlackboardKeyType,
+			OptionalBlackboardComponent,
+			OutFlowDataPinProperty))
+		{
+			return EFlowDataPinResolveResult::Success;
+		}
+	}
+
+	return EFlowDataPinResolveResult::FailedMismatchedType;
+}
+
+#if WITH_EDITOR
+void FAIFlowActorBlackboardHelper::AppendBlackboardOptions(
+	const TArray<FAIFlowConfigureBlackboardOption>& PerActorOptions,
+	FTextBuilder& InOutTextBuilder)
+{
+	for (int32 Index = 0; Index < PerActorOptions.Num(); ++Index)
+	{
+		const FAIFlowConfigureBlackboardOption& Option = PerActorOptions[Index];
+		InOutTextBuilder.AppendLine(FString::Printf(TEXT("Config Option #%d:"), Index));
+
+		for (const UFlowBlackboardEntryValue* PerActorEntry : Option.Entries)
+		{
+			if (IsValid(PerActorEntry))
+			{
+				InOutTextBuilder.AppendLine(FString(TEXT("  ")) + PerActorEntry->BuildNodeConfigText().ToString());
+			}
+		}
+	}
+}
+#endif // WITH_EDITOR
+
 void FAIFlowActorBlackboardHelper::ApplyBlackboardEntries(UBlackboardComponent& BlackboardComponent, const TArray<UFlowBlackboardEntryValue*>& EntriesToApply)
 {
 	for (const UFlowBlackboardEntryValue* Entry : EntriesToApply)
@@ -169,69 +319,6 @@ void FAIFlowActorBlackboardHelper::ApplyBlackboardEntries(UBlackboardComponent& 
 			Entry->SetOnBlackboardComponent(&BlackboardComponent);
 		}
 	}
-}
-
-void FAIFlowActorBlackboardHelper::ApplyBlackboardOptionsToBlackboardComponent(
-	UBlackboardComponent& BlackboardComponent,
-	EPerActorOptionsAssignmentMethod ApplicationMethod,
-	const FAIFlowConfigureBlackboardOption& EntriesForEveryActor,
-	const TArray<FAIFlowConfigureBlackboardOption>* PerActorOptions)
-{
-	if (!EntriesForEveryActor.Entries.IsEmpty())
-	{
-		ApplyBlackboardEntries(BlackboardComponent, EntriesForEveryActor.Entries);
-	}
-
-	if (PerActorOptions && !PerActorOptions->IsEmpty())
-	{
-		const int32 PerActorOptionIndex = ChooseNextBlackboardOptionIndex(ApplicationMethod, (*PerActorOptions));
-
-		if (PerActorOptionIndex != INDEX_NONE)
-		{
-			const FAIFlowConfigureBlackboardOption& Option = (*PerActorOptions)[PerActorOptionIndex];
-
-			ApplyBlackboardEntries(BlackboardComponent, Option.Entries);
-		}
-	}
-}
-
-TArray<UBlackboardComponent*> FAIFlowActorBlackboardHelper::FindOrAddBlackboardComponentOnActors(
-	const TArray<AActor*>& Actors,
-	UFlowInjectComponentsManager* InjectComponentsManager,
-	TSubclassOf<UBlackboardComponent> BlackboardComponentClass,
-	UBlackboardData* OptionalBlackboardData,
-	EActorBlackboardSearchRule SearchRule,
-	EActorBlackboardInjectRule InjectRule)
-{
-	TArray<UBlackboardComponent*> BlackboardComponents;
-
-	BlackboardComponents.Reserve(Actors.Num());
-
-	for (AActor* Actor : Actors)
-	{
-		if (!IsValid(Actor))
-		{
-			UE_LOG(LogAIFlow, Error, TEXT("Null Actor supplied to FindOrAddBlackboardComponentOnActors.  Filter out the nulls before calling this function."));
-
-			continue;
-		}
-
-		UBlackboardComponent* FoundBlackboardComponent =
-			FindOrAddBlackboardComponentOnActor(
-				*Actor,
-				InjectComponentsManager,
-				BlackboardComponentClass,
-				OptionalBlackboardData,
-				SearchRule,
-				InjectRule);
-
-		if (FoundBlackboardComponent)
-		{
-			BlackboardComponents.Add(FoundBlackboardComponent);
-		}
-	}
-
-	return BlackboardComponents;
 }
 
 int32 FAIFlowActorBlackboardHelper::ChooseNextBlackboardOptionIndex(
@@ -302,93 +389,6 @@ void FAIFlowActorBlackboardHelper::EnsureOrderedOptionIndices(int32 OptionNum)
 
 		OrderedOptionIndex = INDEX_NONE;
 	}
-}
-
-#if WITH_EDITOR
-void FAIFlowActorBlackboardHelper::AppendBlackboardOptions(
-	const TArray<FAIFlowConfigureBlackboardOption>& PerActorOptions,
-	FTextBuilder& InOutTextBuilder)
-{
-	for (int32 Index = 0; Index < PerActorOptions.Num(); ++Index)
-	{
-		const FAIFlowConfigureBlackboardOption& Option = PerActorOptions[Index];
-		InOutTextBuilder.AppendLine(FString::Printf(TEXT("Config Option #%d:"), Index));
-
-		for (const UFlowBlackboardEntryValue* PerActorEntry : Option.Entries)
-		{
-			if (IsValid(PerActorEntry))
-			{
-				InOutTextBuilder.AppendLine(FString(TEXT("  ")) + PerActorEntry->BuildNodeConfigText().ToString());
-			}
-		}
-	}
-}
-#endif // WITH_EDITOR
-
-EFlowDataPinResolveResult FAIFlowActorBlackboardHelper::TryProvideFlowDataPinPropertyFromBlackboardEntry(
-	const FName& BlackboardKeyName,
-	const UBlackboardKeyType* BlackboardKeyType,
-	UBlackboardComponent* OptionalBlackboardComponent,
-	TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty)
-{
-	if (!BlackboardKeyType)
-	{
-		return EFlowDataPinResolveResult::FailedMismatchedType;
-	}
-
-	FBlackboard::FKey BlackboardKeyID = FBlackboard::InvalidKey;
-
-	if (IsValid(OptionalBlackboardComponent))
-	{
-		BlackboardKeyID = OptionalBlackboardComponent->GetKeyID(BlackboardKeyName);
-
-		if (BlackboardKeyID == FBlackboard::InvalidKey)
-		{
-			return EFlowDataPinResolveResult::FailedUnknownPin;
-		}
-
-		const TSubclassOf<UBlackboardKeyType> FoundKeyType = OptionalBlackboardComponent->GetKeyType(BlackboardKeyID);
-		if (!BlackboardKeyType->IsA(FoundKeyType))
-		{
-			UE_LOG(
-				LogAIFlow,
-				Error,
-				TEXT("Blackboard key %s, key type %s, is not the desired key type %s, on blackboard %s."),
-				*BlackboardKeyName.ToString(),
-				*FoundKeyType->GetName(),
-				*BlackboardKeyType->GetName(),
-				*OptionalBlackboardComponent->GetName());
-
-			return EFlowDataPinResolveResult::FailedMismatchedType;
-		}
-	}
-
-	// TODO (gtaylor) Ideally, we optimize this lookup at some point, perhaps with a map?
-
-	// Slow lookup through all of the subclasses until we find one that can do the conversion.
-	const TArray<TWeakObjectPtr<UClass>> Subclasses = UFlowBlackboardEntryValue::EnsureBlackboardEntryValueSubclassArray();
-
-	for (TWeakObjectPtr<UClass> SubclassPtr : Subclasses)
-	{
-		UClass* Subclass = SubclassPtr.Get();
-		if (!IsValid(Subclass))
-		{
-			continue;
-		}
-
-		const UFlowBlackboardEntryValue* TypedSubclassCDO = Cast<UFlowBlackboardEntryValue>(Subclass->GetDefaultObject());
-
-		if (TypedSubclassCDO->TryProvideFlowDataPinPropertyFromBlackboardEntry(
-			BlackboardKeyName,
-			*BlackboardKeyType,
-			OptionalBlackboardComponent,
-			OutFlowDataPinProperty))
-		{
-			return EFlowDataPinResolveResult::Success;
-		}
-	}
-
-	return EFlowDataPinResolveResult::FailedMismatchedType;
 }
 
 // FAIFlowCachedBlackboardReference ---

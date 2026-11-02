@@ -30,6 +30,30 @@ TSharedPtr<IPropertyHandle> FFlowBlackboardEntryCustomization::GetCuratedNamePro
 	return FoundHandle;
 }
 
+void FFlowBlackboardEntryCustomization::SetCuratedName(const FName& NewKeyName)
+{
+	TSharedPtr<IPropertyHandle> KeyHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FFlowBlackboardEntry, KeyName));
+
+	check(KeyHandle);
+
+	KeyHandle->SetPerObjectValue(0, NewKeyName.ToString());
+}
+
+bool FFlowBlackboardEntryCustomization::TryGetCuratedName(FName& OutName) const
+{
+	const FFlowBlackboardEntry* FlowBlackboardEntry = GetFlowBlackboardEntry();
+	if (FlowBlackboardEntry)
+	{
+		OutName = FlowBlackboardEntry->KeyName;
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 TArray<FName> FFlowBlackboardEntryCustomization::GetCuratedNameOptions() const
 {
 	TArray<FName> Results;
@@ -49,6 +73,52 @@ TArray<FName> FFlowBlackboardEntryCustomization::GetCuratedNameOptions() const
 	Results = GetFlowBlackboardEntries(*BlackboardAsset, *FlowBlackboardEntry);
 
 	return Results;
+}
+
+const IFlowBlackboardAssetProvider* FFlowBlackboardEntryCustomization::TryGetBlackboardAssetProviderFromOuters() const
+{
+	check(StructPropertyHandle->IsValidHandle());
+
+	TArray<UObject*> OuterObjects;
+	StructPropertyHandle->GetOuterObjects(OuterObjects);
+
+	if (OuterObjects.Num() != 1)
+	{
+		// We don't support multiselect. Peace out.
+		return nullptr;
+	}
+
+	UObject* CurrentOuter = OuterObjects[0];
+
+	while (IsValid(CurrentOuter))
+	{
+		const IFlowBlackboardAssetProvider* FlowNodeOuter = Cast<IFlowBlackboardAssetProvider>(CurrentOuter);
+		if (FlowNodeOuter)
+		{
+			return FlowNodeOuter;
+		}
+
+		CurrentOuter = CurrentOuter->GetOuter();
+	}
+
+	return nullptr;
+}
+
+const UBlackboardData* FFlowBlackboardEntryCustomization::GetBlackboardData() const
+{
+	const IFlowBlackboardAssetProvider* FlowBlackboardProvider = TryGetBlackboardAssetProviderFromOuters();
+	if (!FlowBlackboardProvider)
+	{
+		return nullptr;
+	}
+
+	const UBlackboardData* BlackboardData = FlowBlackboardProvider->GetBlackboardAssetForPropertyHandle(StructPropertyHandle);
+	if (!IsValid(BlackboardData))
+	{
+		return nullptr;
+	}
+
+	return BlackboardData;
 }
 
 TArray<FName> FFlowBlackboardEntryCustomization::GetFlowBlackboardEntries(
@@ -108,74 +178,4 @@ TArray<FName> FFlowBlackboardEntryCustomization::GetFlowBlackboardEntries(
 	}
 
 	return ValidBlackboardEntries;
-}
-
-void FFlowBlackboardEntryCustomization::SetCuratedName(const FName& NewKeyName)
-{
-	TSharedPtr<IPropertyHandle> KeyHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FFlowBlackboardEntry, KeyName));
-
-	check(KeyHandle);
-
-	KeyHandle->SetPerObjectValue(0, NewKeyName.ToString());
-}
-
-bool FFlowBlackboardEntryCustomization::TryGetCuratedName(FName& OutName) const
-{
-	const FFlowBlackboardEntry* FlowBlackboardEntry = GetFlowBlackboardEntry();
-	if (FlowBlackboardEntry)
-	{
-		OutName = FlowBlackboardEntry->KeyName;
-
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-const IFlowBlackboardAssetProvider* FFlowBlackboardEntryCustomization::TryGetBlackboardAssetProviderFromOuters() const
-{
-	check(StructPropertyHandle->IsValidHandle());
-
-	TArray<UObject*> OuterObjects;
-	StructPropertyHandle->GetOuterObjects(OuterObjects);
-
-	if (OuterObjects.Num() != 1)
-	{
-		// We don't support multiselect. Peace out.
-		return nullptr;
-	}
-
-	UObject* CurrentOuter = OuterObjects[0];
-
-	while (IsValid(CurrentOuter))
-	{
-		const IFlowBlackboardAssetProvider* FlowNodeOuter = Cast<IFlowBlackboardAssetProvider>(CurrentOuter);
-		if (FlowNodeOuter)
-		{
-			return FlowNodeOuter;
-		}
-
-		CurrentOuter = CurrentOuter->GetOuter();
-	}
-
-	return nullptr;
-}
-
-const UBlackboardData* FFlowBlackboardEntryCustomization::GetBlackboardData() const
-{
-	const IFlowBlackboardAssetProvider* FlowBlackboardProvider = TryGetBlackboardAssetProviderFromOuters();
-	if (!FlowBlackboardProvider)
-	{
-		return nullptr;
-	}
-
-	const UBlackboardData* BlackboardData = FlowBlackboardProvider->GetBlackboardAssetForPropertyHandle(StructPropertyHandle);
-	if (!IsValid(BlackboardData))
-	{
-		return nullptr;
-	}
-
-	return BlackboardData;
 }

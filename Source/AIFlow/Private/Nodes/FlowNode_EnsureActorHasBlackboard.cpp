@@ -56,6 +56,37 @@ void UFlowNode_EnsureActorHasBlackboard::ExecuteInput(const FName& PinName)
 	}
 }
 
+void UFlowNode_EnsureActorHasBlackboard::DeinitializeInstance()
+{
+	CleanupInjectComponentsManager();
+
+	Super::DeinitializeInstance();
+}
+
+void UFlowNode_EnsureActorHasBlackboard::EnsureInjectComponentsManager()
+{
+	if (IsValid(InjectComponentsManager))
+	{
+		return;
+	}
+
+	InjectComponentsManager = NewObject<UFlowInjectComponentsManager>(this);
+
+	InjectComponentsManager->InitializeRuntime();
+	InjectComponentsManager->BeforeActorRemovedDelegate.AddDynamic(this, &ThisClass::OnBeforeActorRemoved);
+}
+
+void UFlowNode_EnsureActorHasBlackboard::CleanupInjectComponentsManager()
+{
+	if (IsValid(InjectComponentsManager))
+	{
+		InjectComponentsManager->ShutdownRuntime();
+		InjectComponentsManager->BeforeActorRemovedDelegate.RemoveDynamic(this, &ThisClass::OnBeforeActorRemoved);
+	}
+
+	InjectComponentsManager = nullptr;
+}
+
 UBlackboardComponent* UFlowNode_EnsureActorHasBlackboard::EnsureActorHasBlackboard(AActor& ResolvedActor)
 {
 	const bool bMayInjectComponent = EActorBlackboardInjectRule_Classifiers::NeedsInjectComponentsManager(InjectRule);
@@ -87,37 +118,6 @@ UBlackboardComponent* UFlowNode_EnsureActorHasBlackboard::EnsureActorHasBlackboa
 		SpecificBlackboardAsset,
 		BlackboardSearchRule,
 		InjectRule);
-}
-
-void UFlowNode_EnsureActorHasBlackboard::DeinitializeInstance()
-{
-	CleanupInjectComponentsManager();
-
-	Super::DeinitializeInstance();
-}
-
-void UFlowNode_EnsureActorHasBlackboard::EnsureInjectComponentsManager()
-{
-	if (IsValid(InjectComponentsManager))
-	{
-		return;
-	}
-
-	InjectComponentsManager = NewObject<UFlowInjectComponentsManager>(this);
-
-	InjectComponentsManager->InitializeRuntime();
-	InjectComponentsManager->BeforeActorRemovedDelegate.AddDynamic(this, &ThisClass::OnBeforeActorRemoved);
-}
-
-void UFlowNode_EnsureActorHasBlackboard::CleanupInjectComponentsManager()
-{
-	if (IsValid(InjectComponentsManager))
-	{
-		InjectComponentsManager->ShutdownRuntime();
-		InjectComponentsManager->BeforeActorRemovedDelegate.RemoveDynamic(this, &ThisClass::OnBeforeActorRemoved);
-	}
-
-	InjectComponentsManager = nullptr;
 }
 
 void UFlowNode_EnsureActorHasBlackboard::OnBeforeActorRemoved(AActor* RemovedActor)

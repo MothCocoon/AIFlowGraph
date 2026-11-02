@@ -24,47 +24,6 @@ void UFlowNodeAddOn_ConfigureSpawnedActorBlackboard::FinishedSpawningActor_Imple
 	Super::FinishedSpawningActor_Implementation(SpawnedActor, SpawningNodeOrAddOn);
 }
 
-UBlackboardComponent* UFlowNodeAddOn_ConfigureSpawnedActorBlackboard::TryEnsureBlackboardComponentToApplyTo(AActor* SpawnedActor, UFlowNodeBase* SpawningNodeOrAddOn)
-{
-	if (!IsValid(SpawnedActor))
-	{
-		return nullptr;
-	}
-
-	const bool bMayInjectComponent = EActorBlackboardInjectRule_Classifiers::NeedsInjectComponentsManager(InjectRule);
-	if (bMayInjectComponent)
-	{
-		EnsureInjectComponentsManager();
-	}
-
-	// Get the BlackboardComponentClass to use from the FlowAsset
-	TSubclassOf<UBlackboardComponent> BlackboardComponentClass = UBlackboardComponent::StaticClass();
-	UAIFlowAsset* AIFlowAsset = Cast<UAIFlowAsset>(GetFlowAsset());
-	if (IsValid(AIFlowAsset))
-	{
-		BlackboardComponentClass = AIFlowAsset->GetBlackboardComponentClass();
-	}
-
-	// Find or add the blackboard component
-	UBlackboardComponent* BlackboardComponent = 
-		FAIFlowActorBlackboardHelper::FindOrAddBlackboardComponentOnActor(
-			*SpawnedActor,
-			InjectComponentsManager,
-			BlackboardComponentClass,
-			ExpectedBlackboardData,
-			SearchRule,
-			InjectRule);
-
-	// Start monitoring the actor, if we (potentially) injected a blackboard component
-	if (bMayInjectComponent)
-	{
-		// Inform subclasses that we are monitoring this Actor
-		OnStartMonitoringActor(*SpawnedActor);
-	}
-
-	return BlackboardComponent;
-}
-
 void UFlowNodeAddOn_ConfigureSpawnedActorBlackboard::UpdateNodeConfigText_Implementation()
 {
 #if WITH_EDITOR
@@ -108,7 +67,50 @@ UBlackboardData* UFlowNodeAddOn_ConfigureSpawnedActorBlackboard::GetBlackboardAs
 
 	return Super::GetBlackboardAssetForPropertyHandle(PropertyHandle);
 }
+#endif // WITH_EDITOR
 
+UBlackboardComponent* UFlowNodeAddOn_ConfigureSpawnedActorBlackboard::TryEnsureBlackboardComponentToApplyTo(AActor* SpawnedActor, UFlowNodeBase* SpawningNodeOrAddOn)
+{
+	if (!IsValid(SpawnedActor))
+	{
+		return nullptr;
+	}
+
+	const bool bMayInjectComponent = EActorBlackboardInjectRule_Classifiers::NeedsInjectComponentsManager(InjectRule);
+	if (bMayInjectComponent)
+	{
+		EnsureInjectComponentsManager();
+	}
+
+	// Get the BlackboardComponentClass to use from the FlowAsset
+	TSubclassOf<UBlackboardComponent> BlackboardComponentClass = UBlackboardComponent::StaticClass();
+	UAIFlowAsset* AIFlowAsset = Cast<UAIFlowAsset>(GetFlowAsset());
+	if (IsValid(AIFlowAsset))
+	{
+		BlackboardComponentClass = AIFlowAsset->GetBlackboardComponentClass();
+	}
+
+	// Find or add the blackboard component
+	UBlackboardComponent* BlackboardComponent =
+		FAIFlowActorBlackboardHelper::FindOrAddBlackboardComponentOnActor(
+			*SpawnedActor,
+			InjectComponentsManager,
+			BlackboardComponentClass,
+			ExpectedBlackboardData,
+			SearchRule,
+			InjectRule);
+
+	// Start monitoring the actor, if we (potentially) injected a blackboard component
+	if (bMayInjectComponent)
+	{
+		// Inform subclasses that we are monitoring this Actor
+		OnStartMonitoringActor(*SpawnedActor);
+	}
+
+	return BlackboardComponent;
+}
+
+#if WITH_EDITOR
 const FFlowAgentDoc& UFlowNodeAddOn_ConfigureSpawnedActorBlackboard::GetAgentDoc() const
 {
 	static const FFlowAgentDoc Doc = MakeAgentDoc(
