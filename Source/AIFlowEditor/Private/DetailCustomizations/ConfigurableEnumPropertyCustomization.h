@@ -16,11 +16,11 @@ private:
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance() { return MakeShareable(new FConfigurableEnumPropertyCustomization()); }
 
-protected:
-
 	//~Begin IPropertyTypeCustomization
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 	//~End IPropertyTypeCustomization
+
+protected:
 
 	//~Begin ICuratedNamePropertyCustomization
 	virtual TSharedPtr<IPropertyHandle> GetCuratedNamePropertyHandle() const override;

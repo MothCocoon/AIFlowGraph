@@ -18,11 +18,11 @@ private:
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance() { return MakeShareable(new FFlowBlackboardEntryCustomization()); }
 
-protected:
-
 	// IPropertyTypeCustomization
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 	// --
+
+protected:
 
 	// ICuratedNamePropertyCustomization
 	virtual TSharedPtr<IPropertyHandle> GetCuratedNamePropertyHandle() const override;

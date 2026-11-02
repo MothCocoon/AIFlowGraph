@@ -78,6 +78,7 @@ protected:
 		const TArray<FAIFlowConfigureBlackboardOption>*& OutPerActorOptions,
 		EPerActorOptionsAssignmentMethod& OutPerActorOptionsAssignmentMethod) const { return false; }
 
+public:
 	// IFlowDataPinValueOwnerInterface
 	virtual bool TryFindPropertyByPinName(
 		const FName& PinName,

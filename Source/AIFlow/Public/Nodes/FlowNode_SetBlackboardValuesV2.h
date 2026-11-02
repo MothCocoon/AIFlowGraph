@@ -73,6 +73,7 @@ protected:
 	virtual void OnStopMonitoringActor(AActor& Actor) { }
 	// --
 
+public:
 	// IFlowDataPinValueOwnerInterface
 	virtual bool TryFindPropertyByPinName(
 		const FName& PinName,
@@ -80,6 +81,7 @@ protected:
 		TInstancedStruct<FFlowDataPinValue>& OutFoundInstancedStruct) const override;
 	// --
 
+protected:
 	// Editor helpers
 #if WITH_EDITOR
 	void AppendEntriesForEveryActor(FTextBuilder& InOutTextBuilder) const;

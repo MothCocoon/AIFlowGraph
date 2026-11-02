@@ -23,8 +23,10 @@ public:
 private:
 	using Super = FFlowAssetEditor;
 
-protected:
+public:
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager) override;
+
+protected:
 	virtual void CreateWidgets() override;
 
 	/** Helper to build the display mode combo box for the watch blackboard tab. */
