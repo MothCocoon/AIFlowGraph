@@ -164,12 +164,13 @@ void SAIFlowWatchBlackboard::PopulateList(const UAIFlowAsset* FlowAssetInstance)
 	}
 
 	// Ensure we have a selection based on the currently available blackboards
-	if (!SelectedBlackboard.IsValid())
+	UBlackboardComponent* BBComp = GetSelectedBlackboard();
+	if (!BBComp)
 	{
 		RebuildAvailableBlackboards(FlowAssetInstance);
+		BBComp = GetSelectedBlackboard();
 	}
 
-	UBlackboardComponent* BBComp = GetSelectedBlackboard();
 	if (!HasValidBlackboardComponent(BBComp))
 	{
 		SetDetailsFlowAsset(nullptr);
