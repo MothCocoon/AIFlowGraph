@@ -1,0 +1,103 @@
+// Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
+#include "Nodes/AIFlowNode_ExecutionRollGuaranteed.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AIFlowNode_ExecutionRollGuaranteed)
+
+const FName UAIFlowNode_ExecutionRollGuaranteed::INPIN_Reset(TEXT("Reset"));
+
+const FName UAIFlowNode_ExecutionRollGuaranteed::OUTPIN_GuaranteedOut(TEXT("Guaranteed Out"));
+const FName UAIFlowNode_ExecutionRollGuaranteed::OUTPIN_FailureOut(TEXT("Failure Out"));
+
+UAIFlowNode_ExecutionRollGuaranteed::UAIFlowNode_ExecutionRollGuaranteed()
+{
+#if WITH_EDITOR
+	NodeDisplayStyle = FlowNodeStyle::Default;
+	Category = TEXT("Flow|Routing");
+#endif
+
+	FString ResetPinTooltip = TEXT("Finish work of this node.");
+	ResetPinTooltip += LINE_TERMINATOR;
+	ResetPinTooltip += TEXT("Calling In input will start triggering output pins once again.");
+
+	InputPins.Add(FFlowPin(INPIN_Reset.ToString(), ResetPinTooltip));
+	
+	FString GuaranteedPinTooltip = TEXT("Roll for a chance to enter this rout sequentially increasing our chances.");
+	FString FailurePinTooltip = TEXT("On failure we take this route");
+	OutputPins.Empty();
+	OutputPins.Add(FFlowPin(OUTPIN_GuaranteedOut.ToString(), GuaranteedPinTooltip));
+	OutputPins.Add(FFlowPin(OUTPIN_FailureOut.ToString(), FailurePinTooltip));
+	
+	AllowedSignalModes = {EFlowSignalMode::Enabled, EFlowSignalMode::Disabled};
+}
+
+void UAIFlowNode_ExecutionRollGuaranteed::OnActivate()
+{
+	Super::OnActivate();
+
+	const int32 RandomSeed = GetRandomSeed();
+	RandomStream.Initialize(RandomSeed);
+}
+
+void UAIFlowNode_ExecutionRollGuaranteed::ExecuteInput(const FName& PinName)
+{
+	if (PinName == DefaultInputPin.PinName)
+	{
+		++RollAttempts;
+		ensure(RollAttempts <= MaximumAttempts);
+
+		const bool bResetOnMaxAttempts = RollAttempts == MaximumAttempts;
+		
+		if (bHasSuccessfullyRolled)
+		{
+			TriggerOutput(OUTPIN_FailureOut, bResetOnMaxAttempts);
+		}
+		else
+		{
+			const int32 Random = RandomStream.RandRange(0, MaximumAttempts - RollAttempts);
+
+			if (Random == 0)
+			{
+				bHasSuccessfullyRolled = true; 
+				TriggerOutput(OUTPIN_GuaranteedOut, bResetOnSuccess || bResetOnMaxAttempts);
+			}
+			else
+			{
+				TriggerOutput(OUTPIN_FailureOut, false);
+			}
+		}
+	}
+	else if (PinName == INPIN_Reset)
+	{
+		Finish();
+	}
+}
+
+void UAIFlowNode_ExecutionRollGuaranteed::Cleanup()
+{
+	RollAttempts = 0;
+	bHasSuccessfullyRolled = false;
+}
+
+#if WITH_EDITOR
+FString UAIFlowNode_ExecutionRollGuaranteed::GetNodeDescription() const
+{
+	FString Result;
+	Result.Reserve(128);
+
+	if (bResetOnSuccess)
+	{
+		Result.Append(TEXT("Reset On Success"));
+	}
+
+	return Result;
+}
+
+const FFlowAgentDoc& UAIFlowNode_ExecutionRollGuaranteed::GetAgentDoc() const
+{
+	static const FFlowAgentDoc Doc = MakeAgentDoc(
+		/*Guidance*/ TEXT("Use to add randomness to a routing decision while still bounding the worst case - with MaximumAttempts=4 the odds are 25%, 50%, 75%, 100%. A Reset input pin resets the pity counter; bResetOnSuccess controls whether a success also resets it automatically."),
+		/*Tags*/     { TEXT("routing"), TEXT("random"), TEXT("pity-system") },
+		/*Articles*/ {  });
+	return Doc;
+}
+#endif
