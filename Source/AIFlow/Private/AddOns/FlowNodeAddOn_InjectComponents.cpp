@@ -7,11 +7,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowNodeAddOn_InjectComponents)
 
-UFlowNodeAddOn_InjectComponents::UFlowNodeAddOn_InjectComponents()
-	: Super()
-{
-}
-
 #if WITH_EDITOR
 const FFlowAgentDoc& UFlowNodeAddOn_InjectComponents::GetAgentDoc() const
 {

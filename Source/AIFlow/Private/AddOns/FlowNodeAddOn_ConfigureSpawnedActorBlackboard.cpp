@@ -8,11 +8,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowNodeAddOn_ConfigureSpawnedActorBlackboard)
 
-UFlowNodeAddOn_ConfigureSpawnedActorBlackboard::UFlowNodeAddOn_ConfigureSpawnedActorBlackboard()
-	: Super()
-{
-}
-
 void UFlowNodeAddOn_ConfigureSpawnedActorBlackboard::FinishedSpawningActor_Implementation(AActor* SpawnedActor, UFlowNodeBase* SpawningNodeOrAddOn)
 {
 	UBlackboardComponent* BlackboardComponent = TryEnsureBlackboardComponentToApplyTo(SpawnedActor, SpawningNodeOrAddOn);

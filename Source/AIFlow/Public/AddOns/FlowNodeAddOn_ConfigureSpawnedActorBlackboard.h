@@ -22,8 +22,6 @@ class AIFLOW_API UFlowNodeAddOn_ConfigureSpawnedActorBlackboard : public UFlowNo
 
 public:
 
-	UFlowNodeAddOn_ConfigureSpawnedActorBlackboard();
-
 	// IFlowPerSpawnedActorInterface
 	virtual void FinishedSpawningActor_Implementation(AActor* SpawnedActor, UFlowNodeBase* SpawningNodeOrAddOn) override;
 	// --
