@@ -54,7 +54,7 @@ protected:
 	// Optional specific actor to use to look for (or inject) the blackboard.
 	// If not specified, will use the flow graph's owning actor.
 	UPROPERTY(Transient, meta = (DefaultForInputFlowPin, FlowPinType = "Object", DisplayPriority = 1))
-	TObjectPtr<AActor> SpecificActor = nullptr;
+	TObjectPtr<AActor> SpecificActor;
 
 	// Key in the flow graph's own Blackboard that holds the actor whose Blackboard will be written to.
 	UPROPERTY(EditAnywhere, Category = Configuration, DisplayName = "Key for Actor to Set Blackboard Values On", meta = (DisplayPriority = 1))

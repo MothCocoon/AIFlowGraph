@@ -209,8 +209,8 @@ public:
 public:
 
 	UPROPERTY(Transient)
-	TObjectPtr<UBlackboardComponent> BlackboardComponent = nullptr;
+	TObjectPtr<UBlackboardComponent> BlackboardComponent;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UBlackboardData> BlackboardData = nullptr;
+	TObjectPtr<UBlackboardData> BlackboardData;
 };

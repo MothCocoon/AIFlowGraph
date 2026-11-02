@@ -27,7 +27,7 @@ UFlowNode_EnsureActorHasBlackboard::UFlowNode_EnsureActorHasBlackboard()
 void UFlowNode_EnsureActorHasBlackboard::ExecuteInput(const FName& PinName)
 {
 	// Use the SpecificActor if provided, otherwise use the Flow Owner Actor
-	TObjectPtr<UObject> ResolvedObject = nullptr;
+	TObjectPtr<UObject> ResolvedObject;
 	const EFlowDataPinResolveResult ResolveResult = TryResolveDataPinValue<FFlowPinType_Object>(GET_MEMBER_NAME_CHECKED(ThisClass, SpecificActor), ResolvedObject);
 	AActor* ResolvedActor = Cast<AActor>(ResolvedObject);
 

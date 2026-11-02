@@ -52,5 +52,5 @@ protected:
 
 	// Manager object to inject and remove components from actors
 	UPROPERTY()
-	TObjectPtr<UFlowInjectComponentsManager> InjectComponentsManager = nullptr;
+	TObjectPtr<UFlowInjectComponentsManager> InjectComponentsManager;
 };

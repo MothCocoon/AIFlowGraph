@@ -68,16 +68,16 @@ protected:
 #if WITH_EDITORONLY_DATA
 	// The BaseClass for the Object to set
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Configuration, meta = (AllowAbstract = "true"))
-	TObjectPtr<UClass> BaseClass = nullptr;
+	TObjectPtr<UClass> BaseClass;
 #endif // WITH_EDITORONLY_DATA
 
 	// If an inline Instanced object, use this property to configure it
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Instanced, Category = Configuration, meta = (DisplayAfter = Key, EditCondition = "ObjectTypeSelector == EObjectInstanceTypeSelector::Instanced"))
-	TObjectPtr<UObject> ObjectInstance = nullptr;
+	TObjectPtr<UObject> ObjectInstance;
 
 	// If the object is to be created from an asset, use this property to configure it
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Configuration, meta = (DisplayAfter = ObjectInstance, EditCondition = "ObjectTypeSelector == EObjectInstanceTypeSelector::Asset"))
-	TObjectPtr<UObject> ObjectAsset = nullptr;
+	TObjectPtr<UObject> ObjectAsset;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

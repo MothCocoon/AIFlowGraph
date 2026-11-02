@@ -56,9 +56,9 @@ protected:
 #if WITH_EDITORONLY_DATA
 	// The BaseClass for the Object to set
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Configuration, meta = (AllowAbstract = "true"))
-	TObjectPtr<UClass> BaseClass = nullptr;
+	TObjectPtr<UClass> BaseClass;
 #endif // WITH_EDITORONLY_DATA
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Configuration, meta = (DisplayAfter = Key, AllowAbstract = "true", EditCondition = "BaseClass != nullptr"))
-	TObjectPtr<UClass> ClassInstance = nullptr;
+	TObjectPtr<UClass> ClassInstance;
 };

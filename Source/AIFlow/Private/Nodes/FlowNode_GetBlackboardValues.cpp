@@ -270,7 +270,7 @@ AActor* UFlowNode_GetBlackboardValues::TryResolveActorForBlackboard() const
 	// TODO (gtaylor) Cache this result for better lookup perf + an exec pin to provoke a recache operation
 	
 	// Use the SpecificActor if provided, otherwise use the Flow Owner Actor
-	TObjectPtr<UObject> ResolvedObject = nullptr;
+	TObjectPtr<UObject> ResolvedObject;
 	const EFlowDataPinResolveResult ResolveResult = TryResolveDataPinValue<FFlowPinType_Object>(INPIN_SpecificActor, ResolvedObject);
 
 	if (FlowPinType::IsSuccess(ResolveResult) && ResolvedObject)

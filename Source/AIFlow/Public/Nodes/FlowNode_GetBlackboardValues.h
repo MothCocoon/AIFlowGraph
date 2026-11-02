@@ -74,11 +74,11 @@ protected:
 	// Optional specific actor to use for the blackboard query.
 	// If not specified, will use the flow graph's owning actor.
 	UPROPERTY(Transient, meta = (DefaultForInputFlowPin, FlowPinType = "Object", DisplayPriority = 2))
-	TObjectPtr<AActor> SpecificActor = nullptr;
+	TObjectPtr<AActor> SpecificActor;
 
 	// Specific blackboard to use (optional, defaults to the flow asset's blackboard)
 	UPROPERTY(EditAnywhere, Category = Configuration, DisplayName = "Specific Blackboard", meta = (DisplayPriority = 2))
-	TObjectPtr<UBlackboardData> SpecificBlackboardAsset = nullptr;
+	TObjectPtr<UBlackboardData> SpecificBlackboardAsset;
 
 	// Blackboard entries to get from the blackboard and output as data pins
 	UPROPERTY(EditAnywhere, Category = Configuration, DisplayName = "Blackboard Entries", meta = (DisplayPriority = 3))

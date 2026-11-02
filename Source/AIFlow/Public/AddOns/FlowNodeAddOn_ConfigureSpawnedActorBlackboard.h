@@ -50,7 +50,7 @@ protected:
 
 	// Optional explicit Blackboard asset expected on the spawned actors. Used to validate and locate the correct BlackboardComponent when actors may have multiple.
 	UPROPERTY(EditAnywhere, Category = Configuration, DisplayName = "Expected Blackboard Asset for Actors", meta = (DisplayPriority = 1))
-	TObjectPtr<UBlackboardData> ExpectedBlackboardData = nullptr;
+	TObjectPtr<UBlackboardData> ExpectedBlackboardData;
 
 	// Blackboard key/value pairs to write onto every spawned actor's Blackboard.
 	UPROPERTY(EditAnywhere, Category = Configuration, meta = (DisplayPriority = 3))

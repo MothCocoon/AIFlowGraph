@@ -180,11 +180,11 @@ protected:
 	FFlowBlackboardEntry KeyRight;
 
 	UPROPERTY(EditAnywhere, Instanced, Category = Configuration, DisplayName = "Explicit Value (right)", meta = (EditCondition = "bUseExplicitValueForRightHandSide && bIsKeyLeftSelected"))
-	TObjectPtr<UFlowBlackboardEntryValue> ExplicitValueRight = nullptr;
+	TObjectPtr<UFlowBlackboardEntryValue> ExplicitValueRight;
 
 	// Specific blackboard to use for the comparison
 	UPROPERTY(EditAnywhere, Category = Configuration, AdvancedDisplay, DisplayName = "Specific Blackboard")
-	TObjectPtr<UBlackboardData> SpecificBlackboardAsset = nullptr;
+	TObjectPtr<UBlackboardData> SpecificBlackboardAsset;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = Configuration, meta = (EditCondition = "bIsKeyLeftSelected && bIsKeyLeftSelected"))

@@ -47,11 +47,11 @@ protected:
 	// Optional specific actor to use to look for (or inject) the blackboard.
 	// If not specified, will use the flow graph's owning actor.
 	UPROPERTY(Transient, meta = (DefaultForInputFlowPin, FlowPinType = "Object", DisplayPriority = 2))
-	TObjectPtr<AActor> SpecificActor = nullptr;
+	TObjectPtr<AActor> SpecificActor;
 
 	// Specific blackboard to use (optional, defaults to the flow asset's blackboard)
 	UPROPERTY(EditAnywhere, Category = Configuration, DisplayName = "Specific Blackboard", meta = (DisplayPriority = 2))
-	TObjectPtr<UBlackboardData> SpecificBlackboardAsset = nullptr;
+	TObjectPtr<UBlackboardData> SpecificBlackboardAsset;
 
 	// Injection rule (generally inject onto the Actor, but occasionally you may wish to inject onto the actor's controller)
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Configuration, DisplayName = "Blackboard Injection Rule", meta = (DisplayPriority = 3))
@@ -67,7 +67,7 @@ protected:
 
 	// Manager object to inject and remove components from actors
 	UPROPERTY()
-	TObjectPtr<UFlowInjectComponentsManager> InjectComponentsManager = nullptr;
+	TObjectPtr<UFlowInjectComponentsManager> InjectComponentsManager;
 
 public:
 

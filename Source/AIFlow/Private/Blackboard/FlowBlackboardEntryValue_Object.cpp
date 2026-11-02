@@ -53,7 +53,7 @@ TSubclassOf<UBlackboardKeyType> UFlowBlackboardEntryValue_Object::GetSupportedBl
 
 bool UFlowBlackboardEntryValue_Object::TrySetValueFromInputDataPin(const FName& PinName, UFlowNode& PinOwnerFlowNode)
 {
-	TObjectPtr<UObject> ResolvedObject = nullptr;
+	TObjectPtr<UObject> ResolvedObject;
 	const EFlowDataPinResolveResult ResolveResult = PinOwnerFlowNode.TryResolveDataPinValue<FFlowPinType_Object>(PinName, ResolvedObject);
 	SetObjectValue(ResolvedObject);
 	return FlowPinType::IsSuccess(ResolveResult);

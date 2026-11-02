@@ -65,7 +65,7 @@ protected:
 
 	// Blackboard asset for this FlowAsset
 	UPROPERTY(EditAnywhere, Category = "AI Flow")
-	TObjectPtr<UBlackboardData> BlackboardAsset = nullptr;
+	TObjectPtr<UBlackboardData> BlackboardAsset;
 
 	// Cached blackboard component (on the owning actor)
 	UPROPERTY(Transient)
@@ -73,7 +73,7 @@ protected:
 
 	// Manager object to inject and remove blackboard components from the Flow owning Actor
 	UPROPERTY(Transient)
-	TObjectPtr<UFlowInjectComponentsManager> InjectComponentsManager = nullptr;
+	TObjectPtr<UFlowInjectComponentsManager> InjectComponentsManager;
 
 	// Subclass-configurable Blackboard component class to use
 	UPROPERTY(Transient)

@@ -24,7 +24,7 @@ public:
 
 	// Class for this enum
 	UPROPERTY(EditAnywhere, Category = Blackboard)
-	TObjectPtr<UEnum> EnumClass = nullptr;
+	TObjectPtr<UEnum> EnumClass;
 
 #if WITH_EDITORONLY_DATA
 	// name of enum defined in c++ code, will take priority over asset from EnumType property

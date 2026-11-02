@@ -114,7 +114,7 @@ protected:
 
 	// Specific blackboard to use (optional, defaults to the flow asset's blackboard)
 	UPROPERTY(EditAnywhere, Category = BlackboardAsset, DisplayName = "Specific Blackboard", meta = (DisplayPriority = 2))
-	TObjectPtr<UBlackboardData> SpecificBlackboardAsset = nullptr;
+	TObjectPtr<UBlackboardData> SpecificBlackboardAsset;
 
 	// Search rule to use to find the "Specific Blackboard" (if specified)
 	UPROPERTY(EditAnywhere, Category = BlackboardAsset, DisplayName = "Blackboard Search Rule", meta = (EditCondition = "SpecificBlackboardAsset", DisplayAfter = SpecificBlackboardAsset))
@@ -134,7 +134,7 @@ protected:
 
 	// Manager object to inject and remove components from actors
 	UPROPERTY(Transient)
-	TObjectPtr<UFlowInjectComponentsManager> InjectComponentsManager = nullptr;
+	TObjectPtr<UFlowInjectComponentsManager> InjectComponentsManager;
 
 	static FName INPIN_SpecificActors;
 };
