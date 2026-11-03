@@ -6,7 +6,6 @@
 #include "AIFlowLogChannels.h"
 #include "Nodes/FlowNode.h"
 #include "Types/FlowDataPinValuesStandard.h"
-#include "Types/FlowDataPinResults.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowBlackboardEntryValue_Enum)
 
@@ -162,44 +161,6 @@ bool UFlowBlackboardEntryValue_Enum::TryProvideFlowDataPinPropertyFromBlackboard
 	}
 
 	return false;
-}
-
-FFlowDataPinResult_Enum UFlowBlackboardEntryValue_Enum::TryBuildDataPinResultFromBlackboardEnumEntry(const FName& KeyName, const UBlackboardComponent& BlackboardComponent)
-{
-	const uint8 EnumValueAsInt = BlackboardComponent.GetValueAsEnum(KeyName);
-	const UBlackboardData* BlackboardAsset = BlackboardComponent.GetBlackboardAsset();
-	if (!IsValid(BlackboardAsset))
-	{
-		UE_LOG(LogAIFlow, Error, TEXT("Missing a blackboard asset!"));
-		return FFlowDataPinResult_Enum(EFlowDataPinResolveResult::FailedWithError);
-	}
-
-	const FBlackboard::FKey BlackboardEntryKeyID = BlackboardAsset->GetKeyID(KeyName);
-	if (BlackboardEntryKeyID == FBlackboard::InvalidKey)
-	{
-		UE_LOG(LogAIFlow, Error, TEXT("Cannot find key %s on blackboard %s!"), *KeyName.ToString(), *BlackboardAsset->GetName());
-		return FFlowDataPinResult_Enum(EFlowDataPinResolveResult::FailedWithError);
-	}
-
-	const FBlackboardEntry* BlackboardEntry = BlackboardAsset->GetKey(BlackboardEntryKeyID);
-	check(BlackboardEntry);
-
-	const UBlackboardKeyType_Enum* BlackboardEnumKeyType = Cast<UBlackboardKeyType_Enum>(BlackboardEntry->KeyType);
-	if (!IsValid(BlackboardEnumKeyType))
-	{
-		UE_LOG(LogAIFlow, Error, TEXT("Key %s on blackboard %s, is not an enum type!"), *KeyName.ToString(), *BlackboardAsset->GetName());
-		return FFlowDataPinResult_Enum(EFlowDataPinResolveResult::FailedWithError);
-	}
-
-	UEnum* EnumType = Cast<UEnum>(BlackboardEnumKeyType->EnumType);
-	if (!IsValid(EnumType))
-	{
-		UE_LOG(LogAIFlow, Error, TEXT("Key %s on blackboard %s, refers to an invalid EnumType class!"), *KeyName.ToString(), *BlackboardAsset->GetName());
-		return FFlowDataPinResult_Enum(EFlowDataPinResolveResult::FailedWithError);
-	}
-
-	FFlowDataPinResult_Enum EnumResult = FFlowDataPinResult_Enum(EnumValueAsInt, *EnumType);
-	return EnumResult;
 }
 
 #if WITH_EDITOR
