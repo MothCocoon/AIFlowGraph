@@ -5,4 +5,7 @@ Flow plug-in for Unreal Engine is a design-agnostic event node editor. It provid
 
 See the Flow plug-in documentation for more information.
 
+Agent guidance for AIFlowGraph is maintained centrally in FlowAgentToolkit. Start at the
+[Official Flow Plugins index](https://github.com/MothCocoon/FlowAgentToolkit/blob/5.x/agent-docs/OfficialPluginsIndex.md).
+
 This is a "Preview" release, requires this version of Flow graph (not yet integrated into the mainline Flow): https://github.com/MothCocoon/FlowGraph/tree/5.x
