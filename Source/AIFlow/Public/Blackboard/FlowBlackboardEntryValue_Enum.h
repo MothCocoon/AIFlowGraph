@@ -6,7 +6,6 @@
 
 #include "FlowBlackboardEntryValue_Enum.generated.h"
 
-struct FFlowDataPinResult_Enum;
 class UBlackboardComponent;
 
 /**
@@ -42,7 +41,6 @@ public:
 		UBlackboardComponent* OptionalBlackboardComponent,
 		TInstancedStruct<FFlowDataPinValue>& OutFlowDataPinProperty) const override;
 
-	static FFlowDataPinResult_Enum TryBuildDataPinResultFromBlackboardEnumEntry(const FName& KeyName, const UBlackboardComponent& BlackboardComponent);
 
 #if WITH_EDITOR
 public:
