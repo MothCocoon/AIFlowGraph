@@ -10,7 +10,6 @@
 // Forward Declarations
 class UBlackboardData;
 class UBlackboardComponent;
-class UFlowInjectComponentsManager;
 
 /**
  * Flow Asset subclass to add AI utility (specifically blackboard) capabilities
@@ -70,10 +69,6 @@ protected:
 	// Cached blackboard component (on the owning actor)
 	UPROPERTY(Transient)
 	TWeakObjectPtr<UBlackboardComponent> BlackboardComponent = nullptr;
-
-	// Manager object to inject and remove blackboard components from the Flow owning Actor
-	UPROPERTY(Transient)
-	TObjectPtr<UFlowInjectComponentsManager> InjectComponentsManager;
 
 	// Subclass-configurable Blackboard component class to use
 	UPROPERTY(Transient)

@@ -86,9 +86,14 @@ UBlackboardComponent* UAIFlowAsset::TryFindBlackboardComponentOnActor(AActor& Ac
 		{
 			if (const UBlackboardData* BlackboardCompAsset = BlackboardComp->GetBlackboardAsset())
 			{
-				const UPackage* BlackboardCompAssetPackage = BlackboardCompAsset->GetPackage();
+				if (BlackboardCompAsset == OptionalBlackboardData)
+				{
+					return BlackboardComp;
+				}
 
-				if (BlackboardCompAssetPackage == BlackboardAssetPackage)
+				// Unrelated objects share the transient package, so it does not identify a blackboard asset
+				const UPackage* BlackboardCompAssetPackage = BlackboardCompAsset->GetPackage();
+				if (BlackboardCompAssetPackage == BlackboardAssetPackage && BlackboardCompAssetPackage != GetTransientPackage())
 				{
 					return BlackboardComp;
 				}
@@ -128,12 +133,18 @@ void UAIFlowAsset::CreateAndRegisterBlackboardComponent()
 		return;
 	}
 
-	BlackboardComponent = TryFindBlackboardComponentOnActor(*ActorOwner, BlackboardAsset);
-
-	if (BlackboardComponent.IsValid())
+	if (UBlackboardComponent* ExistingComponent = TryFindBlackboardComponentOnActor(*ActorOwner, BlackboardAsset))
 	{
-		// Blackboard component has already been setup 
+		// Blackboard component has already been setup
 		// (presumably by some other flow graph, or it was built-in to the Actor)
+		BlackboardComponent = ExistingComponent;
+
+		// Keeps a component injected by another graph of this root flow alive while this graph uses it.
+		// Ignored for components the root manager does not track, such as ones built into the Actor.
+		if (UFlowInjectComponentsManager* RootManager = FindComponentInjectionManagerInRootFlow())
+		{
+			RootManager->RegisterComponentUser(*this, *ExistingComponent);
+		}
 
 		return;
 	}
@@ -141,30 +152,30 @@ void UAIFlowAsset::CreateAndRegisterBlackboardComponent()
 	// If the desired blackboard component does not already exist, add it to the ActorOwner
 	const FName InstanceBaseName = FName(FString(TEXT("Comp_") + BlackboardAsset->GetName()));
 	UActorComponent* ComponentInstance = FFlowInjectComponentsHelper::TryCreateComponentInstanceForActorFromClass(*ActorOwner, BlackboardComponentClass, InstanceBaseName);
-	BlackboardComponent = CastChecked<UBlackboardComponent>(ComponentInstance);
-
-	// Create the manager object if we're injecting a component
-	InjectComponentsManager = NewObject<UFlowInjectComponentsManager>(this);
-	InjectComponentsManager->InitializeRuntime();
-
-	// Inject the desired component
-	InjectComponentsManager->InjectComponentOnActor(*ActorOwner, *ComponentInstance);
+	UBlackboardComponent* NewComponent = CastChecked<UBlackboardComponent>(ComponentInstance);
 
 	// Ensure the Runtime BlackboardData is instanced (if subclasses need to instance it)
 	UBlackboardData* RuntimeBlackboard = EnsureRuntimeBlackboardData();
 
-	BlackboardComponent->InitializeBlackboard(*RuntimeBlackboard);
+	if (!NewComponent->InitializeBlackboard(*RuntimeBlackboard))
+	{
+		UE_LOG(LogAIFlow, Error, TEXT("UAIFlowAsset::CreateAndRegisterBlackboardComponent - Blackboard initialization failed for %s on actor %s"),
+			*GetNameSafe(RuntimeBlackboard), *ActorOwner->GetName());
+
+		NewComponent->DestroyComponent();
+		return;
+	}
+
+	// The root flow's manager shares the component with every graph of the root that uses the same blackboard,
+	// and removes it once the last of them is deinitialized
+	UFlowInjectComponentsManager* RootManager = GetOrCreateComponentInjectionManagerInRootFlow();
+	RootManager->InjectComponentOnActor(*ActorOwner, *NewComponent, this);
+
+	BlackboardComponent = NewComponent;
 }
 
 void UAIFlowAsset::DestroyAndUnregisterBlackboardComponent()
 {
-	if (IsValid(InjectComponentsManager))
-	{
-		InjectComponentsManager->ShutdownRuntime();
-	}
-
-	InjectComponentsManager = nullptr;
-
 	BlackboardComponent = nullptr;
 }
 
